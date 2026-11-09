@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Constants from "expo-constants";
 import {
   requestRecordingPermissionsAsync,
@@ -20,6 +20,8 @@ import {
   transcriptLine,
   type Transcript,
 } from "./scribe";
+import { addReply, deleteReply, replaceReply, STARTER_REPLIES } from "./replyList";
+import { readReplies, writeReplies } from "./replies";
 import { readVoice, saveVoice, VOICES, type VoiceId } from "./voices";
 
 const EMPTY: Transcript = { committed: [], partial: "" };
@@ -51,6 +53,8 @@ export function ListenPanel() {
   const [speaking, setSpeaking] = useState(false);
   const [reply, setReply] = useState("");
   const [voice, setVoice] = useState<VoiceId>("warm-woman");
+  const [replies, setReplies] = useState<string[]>(STARTER_REPLIES);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [notice, setNotice] = useState("The microphone is off.");
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
@@ -102,6 +106,11 @@ export function ListenPanel() {
     void readVoice().then((saved) => {
       if (active) {
         setVoice(saved);
+      }
+    });
+    void readReplies().then((saved) => {
+      if (active) {
+        setReplies(saved);
       }
     });
     return () => {
@@ -234,8 +243,37 @@ export function ListenPanel() {
     setNotice("Listening");
   }
 
-  async function speak() {
-    const text = reply;
+  function rememberReplies(next: string[]) {
+    setReplies(next);
+    setEditingIndex(null);
+    void writeReplies(next);
+  }
+
+  function saveQuickReply() {
+    if (editingIndex === null) {
+      const next = addReply(replies, reply);
+      if (next === replies) {
+        setNotice(reply.trim() ? "Already saved." : "Type a reply.");
+        return;
+      }
+      rememberReplies(next);
+      setNotice("Saved.");
+      return;
+    }
+    const next = replaceReply(replies, editingIndex, reply);
+    if (next === replies) {
+      setNotice("Type a reply.");
+      return;
+    }
+    rememberReplies(next);
+    setNotice("Saved.");
+  }
+
+  async function speak(phrase?: string) {
+    const text = phrase ?? reply;
+    if (phrase) {
+      setReply(phrase);
+    }
     if (!text || speakingRef.current) {
       if (!text) {
         setNotice("Type a reply.");
@@ -382,6 +420,55 @@ export function ListenPanel() {
           );
         })}
       </View>
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.replyStripContent}
+        showsHorizontalScrollIndicator={false}
+        style={styles.replyStrip}
+        testID="quick-replies"
+      >
+        {replies.map((phrase, index) => (
+          <View key={`${index}-${phrase}`} style={styles.chip}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={phrase}
+              onLongPress={() => {
+                setEditingIndex(index);
+                setReply(phrase);
+                setNotice("Change it, then tap +.");
+              }}
+              onPress={() => {
+                void speak(phrase);
+              }}
+              testID={`quick-reply-${index}`}
+            >
+              <Text numberOfLines={1} style={styles.chipText}>
+                {phrase}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${phrase}`}
+              onPress={() => {
+                rememberReplies(deleteReply(replies, index));
+                setNotice("Deleted.");
+              }}
+              testID={`quick-reply-delete-${index}`}
+            >
+              <Text style={styles.chipX}>×</Text>
+            </Pressable>
+          </View>
+        ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Save reply"
+          onPress={saveQuickReply}
+          style={styles.chipAdd}
+          testID="quick-reply-add"
+        >
+          <Text style={styles.chipText}>+</Text>
+        </Pressable>
+      </ScrollView>
       <View style={styles.replyRow}>
         <TextInput
           accessibilityLabel="Reply"
@@ -444,10 +531,48 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   transcript: {
+    flex: 1,
     flexShrink: 1,
+    minHeight: 0,
     color: "#ffffff",
     fontSize: 22,
     lineHeight: 28,
+  },
+  replyStrip: {
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: 40,
+  },
+  replyStripContent: {
+    alignItems: "center",
+    gap: 6,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    maxWidth: 220,
+  },
+  chipText: {
+    color: "#ffffff",
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  chipX: {
+    color: "#ffffff",
+    fontSize: 16,
+    lineHeight: 20,
+    paddingRight: 8,
+  },
+  chipAdd: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    minWidth: 36,
   },
   voiceGrid: {
     flexDirection: "row",

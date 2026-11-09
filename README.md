@@ -94,7 +94,7 @@ On the phone, in Expo Go, open the dev server. Tap **Talk**, then **Listen**. Al
 
 Pass means that one transcript line shows the Urdu words and the English word “cash”. Tap **Stop** when you are done.
 
-Type a reply and tap **Speak**. The app stops listening, then plays that text exactly as typed. The status says “Speaking” while the audio plays, then “Paused”. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
+Type a reply and tap **Speak**. The app stops listening, then plays that text exactly as typed. The row above the box is saved replies. Tap one to speak it. Tap **+** to save what is in the box. Hold a reply to change it, then tap **+**. Tap **×** to delete it. The phone keeps that list. The status says “Speaking” while the audio plays, then “Paused”. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
 
 ## With no network
 
