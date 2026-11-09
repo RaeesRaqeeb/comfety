@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
 import {
   requestRecordingPermissionsAsync,
@@ -16,6 +16,7 @@ import { AudioFormat, CommitStrategy, RealtimeEvents, Scribe } from "@elevenlabs
 import type { RealtimeConnection } from "@elevenlabs/client";
 import { wantsSimpler } from "./guideTurn";
 import { lookIntent } from "./lookIntent";
+import { NOT_WATCHING, wantsWatch } from "./warning";
 import {
   applyScribeMessage,
   encodeBase64,
@@ -382,11 +383,22 @@ export function GuidePanel() {
     }
   }
 
+  function sayNotWatching() {
+    stopRecognizer();
+    setNotice("Not watching.");
+    setAnswer(NOT_WATCHING);
+    sayStatus(NOT_WATCHING);
+  }
+
   async function finish() {
     const line = transcriptLine(transcriptRef.current).trim();
     stopRecognizer();
     if (!line) {
       setNotice("Say a question.");
+      return;
+    }
+    if (wantsWatch(line)) {
+      sayNotWatching();
       return;
     }
     const mode = lookIntent(line);
@@ -481,15 +493,24 @@ export function GuidePanel() {
       >
         <Text style={styles.lookTitle}>Check the ground</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Watch obstacles"
+        onPress={sayNotWatching}
+        testID="watch-obstacles"
+        style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+      >
+        <Text style={styles.lookTitle}>Watch obstacles</Text>
+      </Pressable>
         </>
       )}
       <Text accessibilityLiveRegion="polite" style={styles.status} testID="guide-status">
         {notice}
       </Text>
       {aiming ? null : (
-        <Text style={styles.answer} testID="guide-answer">
-          {answer || transcriptLine(transcript) || "Ask a question."}
-        </Text>
+        <ScrollView style={styles.answer} testID="guide-answer">
+          <Text style={styles.answerText}>{answer || transcriptLine(transcript) || "Ask a question."}</Text>
+        </ScrollView>
       )}
     </View>
   );
@@ -499,7 +520,7 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     minHeight: 0,
-    gap: 6,
+    gap: 4,
   },
   body: {
     color: "#ffffff",
@@ -525,7 +546,7 @@ const styles = StyleSheet.create({
   look: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 36,
     borderWidth: 2,
     borderColor: "#ffffff",
   },
@@ -547,6 +568,8 @@ const styles = StyleSheet.create({
   answer: {
     flex: 1,
     minHeight: 0,
+  },
+  answerText: {
     color: "#ffffff",
     fontSize: 22,
     lineHeight: 28,
