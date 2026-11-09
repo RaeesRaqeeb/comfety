@@ -4,7 +4,7 @@ import { DEFAULT_SPEAK_VOICE, SPEAK_MODEL, SPEAK_VOICES } from "../src/speak.ts"
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
-  GEMINI_API_KEY: "gemini-secret-value",
+  XAI_API_KEY: "xai-secret-value",
   DEMO_SECRET: "demo-secret-value",
 };
 

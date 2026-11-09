@@ -27,7 +27,7 @@ import { readVoice } from "./voices";
 const EMPTY: Transcript = { committed: [], partial: "" };
 const NO_NETWORK = "I can't answer without the network.";
 const KEY_HINT =
-  "GEMINI_API_KEY is not set. Put it in .env.local on this machine, then run npm run listen.";
+  "XAI_API_KEY is not set. Put it in .env.local on this machine, then run npm run listen.";
 
 function workerBaseUrl(): string | null {
   const configured = process.env.EXPO_PUBLIC_WORKER_URL?.replace(/\/$/, "");
@@ -182,7 +182,7 @@ export function GuidePanel() {
     }
     const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null;
     if (!response.ok || !body?.text) {
-      const message = body?.error?.includes("GEMINI_API_KEY") ? KEY_HINT : body?.error || NO_NETWORK;
+      const message = body?.error?.includes("XAI_API_KEY") ? KEY_HINT : body?.error || NO_NETWORK;
       setAnswer(message);
       setNotice(message);
       if (message === NO_NETWORK) {

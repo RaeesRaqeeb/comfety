@@ -4,7 +4,7 @@ import { GUIDE_MODEL } from "../src/guide.ts";
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
-  GEMINI_API_KEY: "gemini-secret-value",
+  XAI_API_KEY: "xai-secret-value",
   DEMO_SECRET: "demo-secret-value",
 };
 
@@ -25,11 +25,11 @@ function guideRequest(secret, body) {
 try {
   const missing = await worker.fetch(guideRequest(env.DEMO_SECRET, { text: asked }), {
     ...env,
-    GEMINI_API_KEY: "",
+    XAI_API_KEY: "",
   });
   assert.equal(missing.status, 500);
   const missingBody = await missing.text();
-  assert.match(missingBody, /GEMINI_API_KEY is not set/);
+  assert.match(missingBody, /XAI_API_KEY is not set/);
   assert.equal(missingBody.includes(env.ELEVENLABS_API_KEY), false);
 
   const rejected = await worker.fetch(guideRequest("wrong", { text: asked }), env);
@@ -41,14 +41,13 @@ try {
   globalThis.fetch = async (input, init) => {
     upstreamUrl = String(input);
     const headers = init?.headers;
-    if (headers && typeof headers.get === "function") {
-      upstreamKey = headers.get("x-goog-api-key") ?? "";
-    } else {
-      upstreamKey = headers?.["x-goog-api-key"] ?? "";
-    }
+    const authorization = headers && typeof headers.get === "function"
+      ? headers.get("authorization") ?? ""
+      : headers?.authorization ?? "";
+    upstreamKey = authorization.replace(/^Bearer /, "");
     upstreamBody = typeof init?.body === "string" ? init.body : "";
     return Response.json({
-      candidates: [{ content: { parts: [{ text: "The door is on your left." }] } }],
+      choices: [{ message: { content: "The door is on your left." } }],
     });
   };
 
@@ -57,14 +56,15 @@ try {
     env,
   );
   assert.equal(answered.status, 200);
-  assert.equal(upstreamUrl.includes(GUIDE_MODEL), true);
-  assert.equal(upstreamKey, env.GEMINI_API_KEY);
+  assert.equal(upstreamUrl, "https://api.x.ai/v1/chat/completions");
+  assert.equal(upstreamBody.includes(GUIDE_MODEL), true);
+  assert.equal(upstreamKey, env.XAI_API_KEY);
   assert.equal(upstreamBody.includes(asked), true);
   assert.equal(upstreamBody.includes("shorter words"), true);
   assert.equal(upstreamBody.includes("It is ahead."), true);
   const answer = await answered.json();
   assert.equal(answer.text, "The door is on your left.");
-  assert.equal(JSON.stringify(answer).includes(env.GEMINI_API_KEY), false);
+  assert.equal(JSON.stringify(answer).includes(env.XAI_API_KEY), false);
 
   console.log("guide route ok");
 } finally {

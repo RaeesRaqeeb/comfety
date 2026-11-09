@@ -4,7 +4,7 @@ import worker from "../worker/src/index.ts";
 const port = 8791;
 const env = {
   ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY ?? "",
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
+  XAI_API_KEY: process.env.XAI_API_KEY ?? "",
   DEMO_SECRET: process.env.DEMO_SECRET ?? "",
 };
 

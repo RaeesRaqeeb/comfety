@@ -67,7 +67,7 @@ npx tsc --noEmit -p worker/tsconfig.json
 `GET /health` returns:
 
 ```json
-{ "ok": true, "env": ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "DEMO_SECRET"] }
+{ "ok": true, "env": ["ELEVENLABS_API_KEY", "XAI_API_KEY", "DEMO_SECRET"] }
 ```
 
 Those three names are the worker's environment. Values are secrets. They are not in this repo. Do not deploy this worker.
@@ -84,7 +84,7 @@ Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SEC
 npm run listen
 ```
 
-That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`, `http://<this-machine>:8791/v1/speak`, and `http://<this-machine>:8791/v1/guide`. Put `GEMINI_API_KEY` in `.env.local` for Guide. Restart `npm run listen` after adding it.
+That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`, `http://<this-machine>:8791/v1/speak`, and `http://<this-machine>:8791/v1/guide`. Put `XAI_API_KEY` in `.env.local` for Guide. Restart `npm run listen` after adding it.
 
 Anything other than `GET /health`, `POST /v1/scribe-token`, `POST /v1/speak`, and `POST /v1/guide` returns 404. Responses never include secret values.
 

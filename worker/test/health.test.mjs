@@ -3,7 +3,7 @@ import worker from "../src/index.ts";
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
-  GEMINI_API_KEY: "gemini-secret-value",
+  XAI_API_KEY: "xai-secret-value",
   DEMO_SECRET: "demo-secret-value",
 };
 
@@ -16,7 +16,7 @@ for (const secret of Object.values(env)) {
 }
 assert.deepEqual(JSON.parse(raw), {
   ok: true,
-  env: ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "DEMO_SECRET"],
+  env: ["ELEVENLABS_API_KEY", "XAI_API_KEY", "DEMO_SECRET"],
 });
 
 const missing = await worker.fetch(new Request("https://comfety.test/v1/missing"), env);

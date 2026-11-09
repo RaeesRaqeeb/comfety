@@ -1,10 +1,10 @@
 import { demoGate, json } from "./scribe-token.ts";
 
-export const GUIDE_MODEL = "gemini-2.5-flash";
+export const GUIDE_MODEL = "grok-4.3";
 
 type SecretEnv = {
   ELEVENLABS_API_KEY: string;
-  GEMINI_API_KEY: string;
+  XAI_API_KEY: string;
   DEMO_SECRET: string;
 };
 
@@ -37,9 +37,9 @@ export async function guideResponse(request: Request, env: SecretEnv): Promise<R
   if (gated) {
     return gated;
   }
-  if (!env.GEMINI_API_KEY) {
+  if (!env.XAI_API_KEY) {
     return json(
-      { error: "GEMINI_API_KEY is not set. Put it in .env.local and run npm run listen." },
+      { error: "XAI_API_KEY is not set. Put it in .env.local and run npm run listen." },
       500,
     );
   }
@@ -69,25 +69,20 @@ export async function guideResponse(request: Request, env: SecretEnv): Promise<R
 
   let upstream: Response;
   try {
-    upstream = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GUIDE_MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-goog-api-key": env.GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildGuidePrompt({ text, simpler, previous }) }],
-            },
-          ],
-          generationConfig: { maxOutputTokens: 256, temperature: 0.4 },
-        }),
+    upstream = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${env.XAI_API_KEY}`,
       },
-    );
+      body: JSON.stringify({
+        model: GUIDE_MODEL,
+        reasoning_effort: "none",
+        temperature: 0.4,
+        max_tokens: 256,
+        messages: [{ role: "user", content: buildGuidePrompt({ text, simpler, previous }) }],
+      }),
+    });
   } catch {
     return json({ error: "I can't answer without the network." }, 502);
   }
@@ -98,13 +93,23 @@ export async function guideResponse(request: Request, env: SecretEnv): Promise<R
   let answer = "";
   try {
     const payload = (await upstream.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      choices?: { message?: { content?: unknown } }[];
     };
-    answer =
-      payload.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text ?? "")
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content === "string") {
+      answer = content.trim();
+    } else if (Array.isArray(content)) {
+      answer = content
+        .map((part) => {
+          if (typeof part === "string") return part;
+          if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+            return part.text;
+          }
+          return "";
+        })
         .join("")
-        .trim() ?? "";
+        .trim();
+    }
   } catch {
     answer = "";
   }
