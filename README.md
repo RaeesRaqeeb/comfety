@@ -86,7 +86,7 @@ npm run listen
 
 That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`, `http://<this-machine>:8791/v1/speak`, and `http://<this-machine>:8791/v1/guide`. Put `XAI_API_KEY` in `.env.local` for Guide. Restart `npm run listen` after adding it.
 
-Anything other than `GET /health`, `POST /v1/scribe-token`, `POST /v1/speak`, and `POST /v1/guide` returns 404. Responses never include secret values.
+Anything other than `GET /health`, `POST /v1/scribe-token`, `POST /v1/speak`, `POST /v1/guide`, and `POST /v1/look` returns 404. Responses never include secret values. The look route does not store the photo.
 
 ## Mixed-sentence test
 
@@ -98,7 +98,9 @@ Type a reply and tap **Speak**. The app stops listening, then plays that text ex
 
 ## Guide
 
-Tap **Guide**, then **Talk**, and ask a question. The app answers in a few short sentences and speaks them with the voice you last chose. Then say “سمجھ نہیں آئی”. The next answer uses shorter words and one concrete example. The camera stays off. This is not a cane.
+Tap **Guide**, then **Talk**, and ask a question. The app answers in a few short sentences and speaks them with the voice you last chose. Then say “سمجھ نہیں آئی”. The next answer uses shorter words and one concrete example.
+
+**What’s in front of me** takes one photo and speaks what is in it. **Read this** takes one photo and speaks the words it can see. You can say those phrases after **Talk** as well. A medicine label ends with “I can read the words. I cannot tell you how much to take.” The camera stays off until you ask. This is not a cane.
 
 ## With no network
 

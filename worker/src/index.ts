@@ -1,4 +1,5 @@
 import { guideResponse } from "./guide.ts";
+import { lookResponse } from "./look.ts";
 import { scribeTokenResponse } from "./scribe-token.ts";
 import { speakResponse } from "./speak.ts";
 
@@ -28,6 +29,9 @@ export default {
     }
     if (url.pathname === "/v1/guide") {
       return guideResponse(request, env);
+    }
+    if (url.pathname === "/v1/look") {
+      return lookResponse(request, env);
     }
     return new Response("Not found", { status: 404 });
   },

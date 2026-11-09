@@ -45,7 +45,14 @@
           "imageWidth": 128
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "The camera looks only after you ask. It is off until then. This is not a cane.",
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

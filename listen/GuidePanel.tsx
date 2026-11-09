@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
 import {
   requestRecordingPermissionsAsync,
@@ -8,11 +8,14 @@ import {
   useAudioStream,
 } from "expo-audio";
 import type { AudioStreamBuffer } from "expo-audio";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { File, Paths } from "expo-file-system";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as Speech from "expo-speech";
 import { AudioFormat, CommitStrategy, RealtimeEvents, Scribe } from "@elevenlabs/client";
 import type { RealtimeConnection } from "@elevenlabs/client";
 import { wantsSimpler } from "./guideTurn";
+import { lookIntent } from "./lookIntent";
 import {
   applyScribeMessage,
   encodeBase64,
@@ -26,6 +29,7 @@ import { readVoice } from "./voices";
 
 const EMPTY: Transcript = { committed: [], partial: "" };
 const NO_NETWORK = "I can't answer without the network.";
+const NEED_NETWORK = "I need the network to read this.";
 const KEY_HINT =
   "XAI_API_KEY is not set. Put it in .env.local on this machine, then run npm run listen.";
 
@@ -53,7 +57,13 @@ export function GuidePanel() {
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState("The microphone is off.");
   const [answer, setAnswer] = useState("");
+  const [cameraOn, setCameraOn] = useState(false);
+  const [, requestCameraPermission] = useCameraPermissions();
   const previousRef = useRef("");
+  const transcriptRef = useRef<Transcript>(EMPTY);
+  const cameraRef = useRef<CameraView>(null);
+  const cameraReadyRef = useRef<(() => void) | null>(null);
+  const busyRef = useRef(false);
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
   const player = useAudioPlayer(null);
@@ -237,10 +247,18 @@ export function GuidePanel() {
     });
     connectionRef.current = connection;
     connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (data) => {
-      setTranscript((current) => applyScribeMessage(current, data));
+      setTranscript((current) => {
+        const next = applyScribeMessage(current, data);
+        transcriptRef.current = next;
+        return next;
+      });
     });
     connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (data) => {
-      setTranscript((current) => applyScribeMessage(current, data));
+      setTranscript((current) => {
+        const next = applyScribeMessage(current, data);
+        transcriptRef.current = next;
+        return next;
+      });
     });
     try {
       await setAudioModeAsync({
@@ -264,16 +282,115 @@ export function GuidePanel() {
     }
     listeningRef.current = true;
     setListening(true);
+    transcriptRef.current = EMPTY;
     setTranscript(EMPTY);
     setNotice("Listening");
     sayStatus("Listening");
   }
 
+  async function captureJpeg(): Promise<string | null> {
+    setCameraOn(true);
+    setNotice("Camera on");
+    sayStatus("Camera on");
+    const ready = new Promise<void>((resolve) => {
+      cameraReadyRef.current = resolve;
+    });
+    const opened = await Promise.race([
+      ready.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8000)),
+    ]);
+    if (!opened || !cameraRef.current) {
+      setCameraOn(false);
+      return null;
+    }
+    try {
+      const picture = await cameraRef.current.takePictureAsync({ quality: 0.4, shutterSound: false });
+      const resized = await manipulateAsync(picture.uri, [{ resize: { width: 1024 } }], {
+        compress: 0.6,
+        format: SaveFormat.JPEG,
+        base64: true,
+      });
+      return resized.base64 ?? null;
+    } catch {
+      return null;
+    } finally {
+      setCameraOn(false);
+    }
+  }
+
+  async function look(mode: "describe" | "read") {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
+    stopRecognizer();
+    try {
+      if (Platform.OS === "web") {
+        setNotice("Open this screen in Expo Go on the phone. This browser preview has no camera.");
+        return;
+      }
+      const permission = await requestCameraPermission();
+      if (!permission.granted) {
+        setNotice("The camera stays off.");
+        return;
+      }
+      const image = await captureJpeg();
+      if (!image) {
+        setNotice("The camera stays off.");
+        return;
+      }
+      const secret = process.env.EXPO_PUBLIC_DEMO_SECRET ?? "";
+      const base = workerBaseUrl();
+      if (!secret || !base) {
+        setAnswer(NEED_NETWORK);
+        setNotice(NEED_NETWORK);
+        sayStatus(NEED_NETWORK);
+        return;
+      }
+      let response: Response;
+      try {
+        response = await fetch(`${base}/v1/look`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-comfety-demo": secret,
+          },
+          body: JSON.stringify({ mode, image }),
+        });
+      } catch {
+        setAnswer(NEED_NETWORK);
+        setNotice(NEED_NETWORK);
+        sayStatus(NEED_NETWORK);
+        return;
+      }
+      const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null;
+      if (!response.ok || !body?.text) {
+        const message = body?.error || NEED_NETWORK;
+        setAnswer(message);
+        setNotice(message);
+        if (message === NEED_NETWORK) {
+          sayStatus(NEED_NETWORK);
+        }
+        return;
+      }
+      previousRef.current = body.text;
+      setAnswer(body.text);
+      await playAnswer(body.text);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
   async function finish() {
-    const line = transcriptLine(transcript).trim();
+    const line = transcriptLine(transcriptRef.current).trim();
     stopRecognizer();
     if (!line) {
       setNotice("Say a question.");
+      return;
+    }
+    const mode = lookIntent(line);
+    if (mode) {
+      await look(mode);
       return;
     }
     await ask(line);
@@ -297,6 +414,38 @@ export function GuidePanel() {
       >
         <Text style={[styles.talkTitle, listening && styles.ink]}>{listening ? "Stop" : "Talk"}</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="What's in front of me"
+        onPress={() => {
+          void look("describe");
+        }}
+        testID="look-describe"
+        style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+      >
+        <Text style={styles.lookTitle}>What's in front of me</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Read this"
+        onPress={() => {
+          void look("read");
+        }}
+        testID="look-read"
+        style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+      >
+        <Text style={styles.lookTitle}>Read this</Text>
+      </Pressable>
+      {cameraOn ? (
+        <CameraView
+          ref={cameraRef}
+          facing="back"
+          mute
+          mode="picture"
+          onCameraReady={() => cameraReadyRef.current?.()}
+          style={styles.preview}
+        />
+      ) : null}
       <Text accessibilityLiveRegion="polite" style={styles.status} testID="guide-status">
         {notice}
       </Text>
@@ -330,14 +479,30 @@ const styles = StyleSheet.create({
   },
   talkTitle: {
     color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "600",
+  },
+  look: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+  },
+  lookTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "600",
+  },
+  preview: {
+    height: 72,
   },
   status: {
     color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 28,
   },
   answer: {
     flex: 1,
