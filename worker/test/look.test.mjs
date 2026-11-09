@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import worker from "../src/index.ts";
-import { DOSAGE_LINE, GROUND_DRAIN, GROUND_NONE, GROUND_UNSURE } from "../src/look.ts";
+import { DOSAGE_LINE, GROUND_DRAIN, GROUND_NONE, GROUND_PERSON, GROUND_UNSURE } from "../src/look.ts";
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
@@ -85,6 +85,13 @@ try {
     Response.json({ choices: [{ message: { content: "none" } }] });
   const none = await worker.fetch(lookRequest(env.DEMO_SECRET, { mode: "ground", image }), env);
   assert.equal((await none.json()).text, GROUND_NONE);
+
+  globalThis.fetch = async () =>
+    Response.json({
+      choices: [{ message: { content: "none. A person is standing beside a chair." } }],
+    });
+  const person = await worker.fetch(lookRequest(env.DEMO_SECRET, { mode: "ground", image }), env);
+  assert.equal((await person.json()).text, GROUND_PERSON);
 
   console.log("look route ok");
 } finally {

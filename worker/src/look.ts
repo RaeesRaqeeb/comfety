@@ -19,23 +19,26 @@ export const GROUND_NONE = "I do not see those in this photo. I can still miss t
 export const GROUND_UNSURE = "I am not sure. Stay still.";
 
 export function groundLine(answer: string): string {
-  const word = (answer.trim().toLowerCase().split(/\s+/)[0] ?? "").replace(/[^a-z]/g, "");
-  if (word === "drain") return GROUND_DRAIN;
-  if (word === "stairs" || word === "stair") return GROUND_STAIRS;
-  if (word === "vehicle") return GROUND_VEHICLE;
-  if (word === "person") return GROUND_PERSON;
-  if (word === "none") return GROUND_NONE;
+  const line = answer.toLowerCase();
+  if (/\bdrain\b|\bhole\b/.test(line)) return GROUND_DRAIN;
+  if (/\bstairs?\b|\bsteps?\b/.test(line)) return GROUND_STAIRS;
+  if (/\b(vehicle|car|motorcycle|bicycle|bus|truck)\b/.test(line)) return GROUND_VEHICLE;
+  if (/\b(person|people|man|woman|human|child)\b/.test(line)) return GROUND_PERSON;
+  if (/\bnone\b/.test(line)) return GROUND_NONE;
   return GROUND_UNSURE;
 }
 
 export function buildLookPrompt(mode: LookMode): string {
   if (mode === "ground") {
     return [
-      "Look at the ground in this photo.",
+      "Look at the whole photo, especially the ground.",
       "Reply with one word only: stairs, drain, vehicle, person, none, or unsure.",
-      "stairs means steps. drain means an open drain or a hole. vehicle means a car, motorcycle, bicycle, bus, or truck. person means a person.",
-      "none means you see none of those. unsure means you cannot tell.",
-      "Do not describe anything else. Do not say the way is clear or safe.",
+      "If a person is visible anywhere, standing or sitting, answer person.",
+      "If a car, motorcycle, bicycle, bus, or truck is visible, answer vehicle.",
+      "If you see steps, answer stairs. If you see an open drain or a hole in the ground, answer drain.",
+      "A chair, table, bottle, wall, or paper is none.",
+      "Do not answer none when a person or vehicle is visible.",
+      "Do not describe the photo. Do not say the way is clear or safe.",
     ].join("\n");
   }
   if (mode === "read") {
@@ -141,7 +144,7 @@ export async function lookResponse(request: Request, env: SecretEnv): Promise<Re
             content: [
               {
                 type: "image_url",
-                image_url: { url: `data:image/jpeg;base64,${image}` },
+                image_url: { url: `data:image/jpeg;base64,${image}`, detail: "high" },
               },
               { type: "text", text: buildLookPrompt(mode) },
             ],
