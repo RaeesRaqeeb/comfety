@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Constants from "expo-constants";
-import { requestRecordingPermissionsAsync, setAudioModeAsync, useAudioStream } from "expo-audio";
+import {
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioStream,
+} from "expo-audio";
+import { File, Paths } from "expo-file-system";
 import type { AudioStreamBuffer } from "expo-audio";
 import { AudioFormat, CommitStrategy, RealtimeEvents, Scribe } from "@elevenlabs/client";
 import type { RealtimeConnection } from "@elevenlabs/client";
@@ -41,9 +47,14 @@ function workerBaseUrl(): string | null {
 export function ListenPanel() {
   const [transcript, setTranscript] = useState<Transcript>(EMPTY);
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [reply, setReply] = useState("");
   const [notice, setNotice] = useState("The microphone is off.");
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
+  const speakingRef = useRef(false);
+  const speakGeneration = useRef(0);
+  const player = useAudioPlayer(null);
 
   const { stream } = useAudioStream({
     sampleRate: 16000,
@@ -66,23 +77,45 @@ export function ListenPanel() {
     connection.send({ audioBase64: encodeBase64(bytes), sampleRate: 16000 });
   }
 
-  function stop() {
+  function stopRecognizer() {
     listeningRef.current = false;
     setListening(false);
     const connection = connectionRef.current;
     connectionRef.current = null;
     connection?.close();
     stream?.stop?.();
+  }
+
+  function stop() {
+    speakGeneration.current += 1;
+    stopRecognizer();
+    speakingRef.current = false;
+    setSpeaking(false);
+    player.pause();
     setNotice("Paused");
   }
 
   useEffect(() => {
+    const subscription = player.addListener("playbackStatusUpdate", (status) => {
+      if (!status.didJustFinish || !speakingRef.current) {
+        return;
+      }
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice("Paused");
+    });
+    return () => subscription.remove();
+  }, [player]);
+
+  useEffect(() => {
     return () => {
       listeningRef.current = false;
+      speakingRef.current = false;
       connectionRef.current?.close();
       stream?.stop?.();
+      player.pause();
     };
-  }, [stream]);
+  }, [player, stream]);
 
   async function start() {
     setNotice("The microphone hears the other person, or your question.");
@@ -136,7 +169,9 @@ export function ListenPanel() {
       setTranscript((current) => applyScribeMessage(current, data));
     });
     connection.on(RealtimeEvents.ERROR, () => {
-      setNotice("Listening failed.");
+      if (listeningRef.current) {
+        setNotice("Listening failed.");
+      }
     });
     connection.on(RealtimeEvents.CLOSE, () => {
       if (listeningRef.current) {
@@ -172,9 +207,104 @@ export function ListenPanel() {
       setNotice("The microphone stays off.");
       return;
     }
+    if (speakingRef.current) {
+      connection.close();
+      if (connectionRef.current === connection) {
+        connectionRef.current = null;
+      }
+      stream?.stop?.();
+      return;
+    }
     listeningRef.current = true;
     setListening(true);
     setNotice("Listening");
+  }
+
+  async function speak() {
+    const text = reply;
+    if (!text || speakingRef.current) {
+      if (!text) {
+        setNotice("Type a reply.");
+      }
+      return;
+    }
+    stopRecognizer();
+    const generation = speakGeneration.current + 1;
+    speakGeneration.current = generation;
+    speakingRef.current = true;
+    setSpeaking(true);
+    setNotice("Speaking");
+
+    const secret = process.env.EXPO_PUBLIC_DEMO_SECRET ?? "";
+    const base = workerBaseUrl();
+    if (!secret) {
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice(SECRET_HINT);
+      return;
+    }
+    if (!base) {
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice("The worker address is missing. Start Expo on this machine, then reopen the app.");
+      return;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${base}/v1/speak`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-comfety-demo": secret,
+        },
+        body: JSON.stringify({ text }),
+      });
+    } catch {
+      if (speakGeneration.current !== generation) {
+        return;
+      }
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice("No network.");
+      return;
+    }
+    if (speakGeneration.current !== generation) {
+      return;
+    }
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice(body?.error?.includes("ELEVENLABS_API_KEY") ? KEY_HINT : body?.error || "No network.");
+      return;
+    }
+
+    try {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const file = new File(Paths.cache, "comfety-reply.mp3");
+      if (file.exists) {
+        file.delete();
+      }
+      file.create();
+      await file.write(bytes);
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: "doNotMix",
+        allowsRecording: false,
+        shouldPlayInBackground: false,
+        shouldRouteThroughEarpiece: false,
+      });
+      if (speakGeneration.current !== generation) {
+        return;
+      }
+      player.replace({ uri: file.uri });
+      player.play();
+    } catch {
+      speakingRef.current = false;
+      setSpeaking(false);
+      setNotice("Speaking failed.");
+    }
   }
 
   const line = transcriptLine(transcript);
@@ -187,6 +317,10 @@ export function ListenPanel() {
         accessibilityLabel={listening ? "Stop listening" : "Listen"}
         accessibilityState={{ selected: listening }}
         onPress={() => {
+          if (speakingRef.current) {
+            stop();
+            return;
+          }
           if (listeningRef.current) {
             stop();
           } else {
@@ -209,6 +343,30 @@ export function ListenPanel() {
       <Text style={styles.transcript} testID="transcript">
         {line || "The transcript appears here."}
       </Text>
+      <View style={styles.replyRow}>
+        <TextInput
+          accessibilityLabel="Reply"
+          onChangeText={setReply}
+          placeholder="Type a reply"
+          placeholderTextColor="#a3a3a3"
+          style={styles.reply}
+          testID="reply-input"
+          value={reply}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Speak"
+          accessibilityState={{ disabled: speaking }}
+          disabled={speaking}
+          onPress={() => {
+            void speak();
+          }}
+          testID="speak-button"
+          style={({ pressed }) => [styles.speak, pressed && !speaking && styles.pressed]}
+        >
+          <Text style={styles.speakTitle}>Speak</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -217,7 +375,7 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     minHeight: 0,
-    gap: 6,
+    gap: 4,
   },
   listen: {
     alignItems: "center",
@@ -251,6 +409,38 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 22,
     lineHeight: 28,
+  },
+  replyRow: {
+    flexDirection: "row",
+    flexGrow: 0,
+    flexShrink: 0,
+    alignItems: "center",
+    gap: 8,
+  },
+  reply: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    color: "#ffffff",
+    fontSize: 16,
+    lineHeight: 22,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  speak: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    paddingHorizontal: 12,
+  },
+  speakTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "600",
   },
   ink: {
     color: "#000000",

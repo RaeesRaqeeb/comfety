@@ -19,7 +19,7 @@ assert.deepEqual(JSON.parse(raw), {
   env: ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "DEMO_SECRET"],
 });
 
-const missing = await worker.fetch(new Request("https://comfety.test/v1/speak"), env);
+const missing = await worker.fetch(new Request("https://comfety.test/v1/missing"), env);
 assert.equal(missing.status, 404);
 
 const posted = await worker.fetch(

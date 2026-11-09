@@ -11,7 +11,7 @@ const CORS = {
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
-function json(body: unknown, status: number): Response {
+export function json(body: unknown, status: number): Response {
   return Response.json(body, { status, headers: CORS });
 }
 
@@ -27,7 +27,7 @@ function sameSecret(given: string, expected: string): boolean {
   return difference === 0;
 }
 
-export async function scribeTokenResponse(request: Request, env: SecretEnv): Promise<Response> {
+export function demoGate(request: Request, env: SecretEnv): Response | null {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
   }
@@ -52,6 +52,14 @@ export async function scribeTokenResponse(request: Request, env: SecretEnv): Pro
   const given = request.headers.get("x-comfety-demo") ?? "";
   if (!sameSecret(given, env.DEMO_SECRET)) {
     return json({ error: "The demo secret does not match." }, 401);
+  }
+  return null;
+}
+
+export async function scribeTokenResponse(request: Request, env: SecretEnv): Promise<Response> {
+  const gated = demoGate(request, env);
+  if (gated) {
+    return gated;
   }
 
   try {

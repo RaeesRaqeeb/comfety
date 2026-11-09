@@ -1,4 +1,5 @@
 import { scribeTokenResponse } from "./scribe-token.ts";
+import { speakResponse } from "./speak.ts";
 
 export interface Env {
   ELEVENLABS_API_KEY: string;
@@ -20,6 +21,9 @@ export default {
     }
     if (url.pathname === "/v1/scribe-token") {
       return scribeTokenResponse(request, env);
+    }
+    if (url.pathname === "/v1/speak") {
+      return speakResponse(request, env);
     }
     return new Response("Not found", { status: 404 });
   },

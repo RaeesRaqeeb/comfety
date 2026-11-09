@@ -8,6 +8,7 @@
     "expo": "~58.0.23",
     "expo-audio": "~58.0.11",
     "expo-constants": "~58.0.15",
+    "expo-file-system": "~58.0.13",
     "expo-font": "~58.0.11",
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
@@ -25,7 +26,7 @@
     "listen": "node --experimental-strip-types --env-file=.env.local scripts/listen-server.mjs",
     "android": "expo start --android --port 8421",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
-    "test": "node --experimental-strip-types worker/test/health.test.mjs && node --experimental-strip-types worker/test/scribe.test.mjs && node --experimental-strip-types listen/scribe.test.mjs"
+    "test": "node --experimental-strip-types worker/test/health.test.mjs && node --experimental-strip-types worker/test/scribe.test.mjs && node --experimental-strip-types worker/test/speak.test.mjs && node --experimental-strip-types listen/scribe.test.mjs"
   },
   "private": true
 }

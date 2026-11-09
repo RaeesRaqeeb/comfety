@@ -55,7 +55,7 @@ The `preview` profile is Android only. `android.buildType` is `apk`, so the buil
 
 ## Worker stub
 
-The worker holds the keys and mints a Scribe token. `GET /health` is unchanged. `POST /v1/scribe-token` checks the demo secret, then asks ElevenLabs for a single-use `realtime_scribe` token. The response is `{ "token": "..." }`. It never returns the API key.
+The worker holds the keys. `GET /health` is unchanged. `POST /v1/scribe-token` checks the demo secret, then asks ElevenLabs for a single-use `realtime_scribe` token. The response is `{ "token": "..." }`. `POST /v1/speak` checks the same secret, then sends the typed string unchanged to Eleven v4 Turbo (`eleven_v4_turbo`) and returns audio. It does not rewrite, translate, or set a language code. This slice uses one stock voice. It never returns the API key.
 
 ```bash
 npm test
@@ -84,16 +84,18 @@ Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SEC
 npm run listen
 ```
 
-That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`. `GEMINI_API_KEY` can stay empty for this test.
+That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token` and `http://<this-machine>:8791/v1/speak`. `GEMINI_API_KEY` can stay empty for this test.
 
-Anything other than `GET /health` and `POST /v1/scribe-token` returns 404. Responses never include secret values.
+Anything other than `GET /health`, `POST /v1/scribe-token`, and `POST /v1/speak` returns 404. Responses never include secret values.
 
 ## Mixed-sentence test
 
 On the phone, in Expo Go, open the dev server. Tap **Talk**, then **Listen**. Allow the microphone. Hold the phone toward the person and say: “Bhai yeh bill kitna hai, cash mein do.”
 
-Pass means that one transcript line shows the Urdu words and the English word “cash”. Tap **Stop** when you are done. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
+Pass means that one transcript line shows the Urdu words and the English word “cash”. Tap **Stop** when you are done.
+
+Type a reply and tap **Speak**. The app stops listening, then plays that text exactly as typed. The status says “Speaking” while the audio plays, then “Paused”. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
 
 ## With no network
 
-The home screen, both choices, the permission sentences, and the Urdu line work with no network. Listening stops, and the status says "No network."
+The home screen, both choices, the permission sentences, and the Urdu line work with no network. Listening stops, and Speak does not play. The status says "No network."
