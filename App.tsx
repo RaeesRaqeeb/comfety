@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -50,7 +50,7 @@ function Home() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom", "left", "right"]}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.column}>
+      <View style={styles.column}>
         <Text accessibilityRole="header" style={styles.title}>
           Comfety
         </Text>
@@ -83,7 +83,7 @@ function Home() {
             The Urdu font failed to load.
           </Text>
         )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -139,24 +139,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
   },
   column: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 16,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
   },
   title: {
     color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "600",
   },
   choice: {
-    flexGrow: 1,
-    minHeight: 168,
+    flex: 1,
+    minHeight: 0,
     justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 2,
   },
   choiceOff: {
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
   },
   choiceTitle: {
     color: "#ffffff",
-    fontSize: 44,
-    lineHeight: 52,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: "600",
   },
   body: {
     color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 38,
+    fontSize: 16,
+    lineHeight: 22,
   },
   ink: {
     color: "#000000",
@@ -187,11 +187,9 @@ const styles = StyleSheet.create({
   urdu: {
     fontFamily: FONT,
     color: "#ffffff",
-    fontSize: 36,
-    lineHeight: 108,
+    fontSize: 28,
+    lineHeight: 70,
     textAlign: "center",
     writingDirection: "rtl",
-    paddingTop: 12,
-    paddingBottom: 20,
   },
 });
