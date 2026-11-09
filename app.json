@@ -44,6 +44,12 @@
           "imageWidth": 128
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9e7e8738-a6e2-48fb-bd41-86d2debe2c6b"
+      }
+    },
+    "owner": "raqeeb_2026"
   }
 }
