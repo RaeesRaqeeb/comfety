@@ -55,7 +55,7 @@ The `preview` profile is Android only. `android.buildType` is `apk`, so the buil
 
 ## Worker stub
 
-The worker holds the keys. `GET /health` is unchanged. `POST /v1/scribe-token` checks the demo secret, then asks ElevenLabs for a single-use `realtime_scribe` token. The response is `{ "token": "..." }`. `POST /v1/speak` checks the same secret, then sends the typed string unchanged to Eleven v4 Turbo (`eleven_v4_turbo`) and returns audio. It does not rewrite, translate, or set a language code. This slice uses one premade voice, Bella. It never returns the API key.
+The worker holds the keys. `GET /health` is unchanged. `POST /v1/scribe-token` checks the demo secret, then asks ElevenLabs for a single-use `realtime_scribe` token. The response is `{ "token": "..." }`. `POST /v1/speak` checks the same secret, then sends the typed string unchanged to Eleven v4 Turbo (`eleven_v4_turbo`) and returns audio. It does not rewrite, translate, or set a language code. This slice uses four premade voices, labeled warm woman, warm man, clear woman, and clear man. The phone remembers the last choice. It never returns the API key.
 
 ```bash
 npm test

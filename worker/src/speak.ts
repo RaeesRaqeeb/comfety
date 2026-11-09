@@ -2,8 +2,17 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { demoGate, json } from "./scribe-token.ts";
 
 export const SPEAK_MODEL = "eleven_v4_turbo";
-// Bella, a premade voice. The old default library voice is rejected on a free key.
-export const SPEAK_VOICE_ID = "hpp4J3VqNfWAUOO0d1Us";
+
+export const SPEAK_VOICES = {
+  "warm-woman": "hpp4J3VqNfWAUOO0d1Us",
+  "warm-man": "JBFqnCBsd6RMkjVDRZzb",
+  "clear-woman": "Xb7hH8MSUJpSbSDYk0k2",
+  "clear-man": "onwK4e9ZLuTAKqWW03F9",
+} as const;
+
+export type SpeakVoice = keyof typeof SPEAK_VOICES;
+
+export const DEFAULT_SPEAK_VOICE: SpeakVoice = "warm-woman";
 
 type SecretEnv = {
   ELEVENLABS_API_KEY: string;
@@ -48,10 +57,17 @@ export async function speakResponse(request: Request, env: SecretEnv): Promise<R
   }
 
   let text = "";
+  let voice: SpeakVoice = DEFAULT_SPEAK_VOICE;
   try {
-    const body = (await request.json()) as { text?: unknown };
+    const body = (await request.json()) as { text?: unknown; voice?: unknown };
     if (typeof body.text === "string") {
       text = body.text;
+    }
+    if (body.voice !== undefined) {
+      if (typeof body.voice !== "string" || !(body.voice in SPEAK_VOICES)) {
+        return json({ error: "Choose a voice." }, 400);
+      }
+      voice = body.voice as SpeakVoice;
     }
   } catch {
     return json({ error: "Type a reply." }, 400);
@@ -63,7 +79,7 @@ export async function speakResponse(request: Request, env: SecretEnv): Promise<R
   try {
     const audio = await new ElevenLabsClient({
       apiKey: env.ELEVENLABS_API_KEY,
-    }).textToSpeech.convert(SPEAK_VOICE_ID, {
+    }).textToSpeech.convert(SPEAK_VOICES[voice], {
       text,
       modelId: SPEAK_MODEL,
       outputFormat: "mp3_44100_128",

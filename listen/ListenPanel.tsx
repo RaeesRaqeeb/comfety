@@ -20,6 +20,7 @@ import {
   transcriptLine,
   type Transcript,
 } from "./scribe";
+import { readVoice, saveVoice, VOICES, type VoiceId } from "./voices";
 
 const EMPTY: Transcript = { committed: [], partial: "" };
 
@@ -49,6 +50,7 @@ export function ListenPanel() {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [reply, setReply] = useState("");
+  const [voice, setVoice] = useState<VoiceId>("warm-woman");
   const [notice, setNotice] = useState("The microphone is off.");
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
@@ -94,6 +96,18 @@ export function ListenPanel() {
     player.pause();
     setNotice("Paused");
   }
+
+  useEffect(() => {
+    let active = true;
+    void readVoice().then((saved) => {
+      if (active) {
+        setVoice(saved);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = player.addListener("playbackStatusUpdate", (status) => {
@@ -258,7 +272,7 @@ export function ListenPanel() {
           "content-type": "application/json",
           "x-comfety-demo": secret,
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice }),
       });
     } catch {
       if (speakGeneration.current !== generation) {
@@ -343,6 +357,31 @@ export function ListenPanel() {
       <Text style={styles.transcript} testID="transcript">
         {line || "The transcript appears here."}
       </Text>
+      <View style={styles.voiceGrid} testID="voice-choices">
+        {VOICES.map((choice) => {
+          const selected = voice === choice.id;
+          return (
+            <Pressable
+              key={choice.id}
+              accessibilityRole="button"
+              accessibilityLabel={choice.label}
+              accessibilityState={{ selected }}
+              onPress={() => {
+                setVoice(choice.id);
+                void saveVoice(choice.id);
+              }}
+              testID={`voice-${choice.id}`}
+              style={({ pressed }) => [
+                styles.voice,
+                selected ? styles.listenOn : styles.listenOff,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.voiceLabel, selected && styles.ink]}>{choice.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
       <View style={styles.replyRow}>
         <TextInput
           accessibilityLabel="Reply"
@@ -409,6 +448,29 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 22,
     lineHeight: 28,
+  },
+  voiceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    flexGrow: 0,
+    flexShrink: 0,
+    gap: 4,
+  },
+  voice: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 32,
+    borderWidth: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  voiceLabel: {
+    color: "#ffffff",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
   },
   replyRow: {
     flexDirection: "row",

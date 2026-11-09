@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import worker from "../src/index.ts";
-import { SPEAK_MODEL, SPEAK_VOICE_ID } from "../src/speak.ts";
+import { DEFAULT_SPEAK_VOICE, SPEAK_MODEL, SPEAK_VOICES } from "../src/speak.ts";
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
@@ -11,14 +11,14 @@ const env = {
 const originalFetch = globalThis.fetch;
 const typed = "Bhai yeh bill kitna hai, cash mein do";
 
-function speakRequest(secret, text) {
+function speakRequest(secret, text, voice) {
   return new Request("https://comfety.test/v1/speak", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(secret ? { "x-comfety-demo": secret } : {}),
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(voice === undefined ? { text } : { text, voice }),
   });
 }
 
@@ -58,8 +58,8 @@ try {
   const spoken = await worker.fetch(speakRequest(env.DEMO_SECRET, typed), env);
   assert.equal(spoken.status, 200);
   assert.match(spoken.headers.get("content-type") ?? "", /audio\/mpeg/);
-  assert.equal(SPEAK_VOICE_ID, "hpp4J3VqNfWAUOO0d1Us");
-  assert.equal(upstreamUrl.includes(`/v1/text-to-speech/${SPEAK_VOICE_ID}`), true);
+  assert.equal(SPEAK_VOICES[DEFAULT_SPEAK_VOICE], "hpp4J3VqNfWAUOO0d1Us");
+  assert.equal(upstreamUrl.includes(`/v1/text-to-speech/${SPEAK_VOICES[DEFAULT_SPEAK_VOICE]}`), true);
   assert.equal(upstreamUrl.includes("language_code"), false);
   assert.equal(upstreamKey, env.ELEVENLABS_API_KEY);
   const sent = JSON.parse(upstreamBody);
@@ -70,6 +70,24 @@ try {
   assert.deepEqual(Array.from(audio), [73, 68, 51, 1]);
   const audioText = new TextDecoder().decode(audio);
   assert.equal(audioText.includes(env.ELEVENLABS_API_KEY), false);
+
+  for (const [name, id] of Object.entries(SPEAK_VOICES)) {
+    const chosen = await worker.fetch(speakRequest(env.DEMO_SECRET, typed, name), env);
+    assert.equal(chosen.status, 200);
+    assert.equal(upstreamUrl.includes(`/v1/text-to-speech/${id}`), true);
+    assert.equal(JSON.parse(upstreamBody).text, typed);
+  }
+
+  let called = false;
+  globalThis.fetch = async () => {
+    called = true;
+    return new Response("nope", { status: 403 });
+  };
+  const unknown = await worker.fetch(speakRequest(env.DEMO_SECRET, typed, "library"), env);
+  assert.equal(unknown.status, 400);
+  assert.equal(called, false);
+  const unknownBody = await unknown.text();
+  assert.equal(unknownBody.includes(env.ELEVENLABS_API_KEY), false);
 
   globalThis.fetch = async () => new Response("nope", { status: 403 });
   const failed = await worker.fetch(speakRequest(env.DEMO_SECRET, typed), env);

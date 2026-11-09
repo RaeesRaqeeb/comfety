@@ -136,7 +136,7 @@ function ChoiceButton({
       ]}
     >
       <Text style={[styles.choiceTitle, selected && styles.ink]}>{title}</Text>
-      <Text style={[styles.body, selected && styles.ink]}>{body}</Text>
+      {compact ? null : <Text style={[styles.body, selected && styles.ink]}>{body}</Text>}
     </Pressable>
   );
 }
