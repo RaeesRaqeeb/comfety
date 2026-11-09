@@ -1,0 +1,8 @@
+name = "comfety"
+main = "src/index.ts"
+compatibility_date = "2026-11-09"
+
+# Secrets stay out of git. Do not deploy this stub.
+# ELEVENLABS_API_KEY
+# GEMINI_API_KEY
+# DEMO_SECRET

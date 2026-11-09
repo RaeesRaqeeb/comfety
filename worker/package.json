@@ -1,0 +1,5 @@
+{
+  "name": "comfety-worker",
+  "private": true,
+  "type": "module"
+}
