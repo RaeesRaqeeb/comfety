@@ -52,7 +52,8 @@
           "cameraPermission": "The camera looks only after you ask. It is off until then. This is not a cane.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "react-native-fast-tflite"
     ],
     "extra": {
       "eas": {

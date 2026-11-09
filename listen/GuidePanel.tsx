@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from "react-native";
 import Constants from "expo-constants";
 import {
   requestRecordingPermissionsAsync,
@@ -16,6 +16,7 @@ import { AudioFormat, CommitStrategy, RealtimeEvents, Scribe } from "@elevenlabs
 import type { RealtimeConnection } from "@elevenlabs/client";
 import { wantsSimpler } from "./guideTurn";
 import { lookIntent } from "./lookIntent";
+import { canWatchHere, WatchScreen } from "./watchGate";
 import { NOT_WATCHING, wantsWatch } from "./warning";
 import {
   applyScribeMessage,
@@ -59,6 +60,7 @@ export function GuidePanel() {
   const [notice, setNotice] = useState("The microphone is off.");
   const [answer, setAnswer] = useState("");
   const [aiming, setAiming] = useState<"describe" | "read" | "ground" | null>(null);
+  const [watching, setWatching] = useState(false);
   const [, requestCameraPermission] = useCameraPermissions();
   const previousRef = useRef("");
   const transcriptRef = useRef<Transcript>(EMPTY);
@@ -385,9 +387,41 @@ export function GuidePanel() {
 
   function sayNotWatching() {
     stopRecognizer();
+    setWatching(false);
     setNotice("Not watching.");
     setAnswer(NOT_WATCHING);
     sayStatus(NOT_WATCHING);
+  }
+
+  function speakWatch(phrase: string) {
+    stopRecognizer();
+    void player.pause();
+    Speech.stop();
+    setNotice(phrase);
+    setAnswer(phrase);
+    Speech.speak(phrase);
+    try {
+      Vibration.vibrate(200);
+    } catch {
+      return;
+    }
+  }
+
+  function beginWatch() {
+    stopRecognizer();
+    if (!canWatchHere()) {
+      sayNotWatching();
+      return;
+    }
+    setAiming(null);
+    setNotice("Loading the watcher.");
+    setWatching(true);
+  }
+
+  function stopWatch() {
+    setWatching(false);
+    Speech.stop();
+    setNotice("Not watching.");
   }
 
   async function finish() {
@@ -398,7 +432,7 @@ export function GuidePanel() {
       return;
     }
     if (wantsWatch(line)) {
-      sayNotWatching();
+      beginWatch();
       return;
     }
     const mode = lookIntent(line);
@@ -412,7 +446,20 @@ export function GuidePanel() {
   return (
     <View style={styles.panel} testID="guide-panel">
       <Text style={styles.body}>This is not a cane.</Text>
-      {aiming ? (
+      {watching ? (
+        <>
+          <WatchScreen onWarning={speakWatch} onReady={speakWatch} onUnavailable={sayNotWatching} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Stop watching"
+            onPress={stopWatch}
+            testID="watch-stop"
+            style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+          >
+            <Text style={styles.lookTitle}>Stop watching</Text>
+          </Pressable>
+        </>
+      ) : aiming ? (
         <>
           <CameraView
             ref={cameraRef}
@@ -496,7 +543,7 @@ export function GuidePanel() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Watch obstacles"
-        onPress={sayNotWatching}
+        onPress={beginWatch}
         testID="watch-obstacles"
         style={({ pressed }) => [styles.look, pressed && styles.pressed]}
       >
@@ -507,7 +554,7 @@ export function GuidePanel() {
       <Text accessibilityLiveRegion="polite" style={styles.status} testID="guide-status">
         {notice}
       </Text>
-      {aiming ? null : (
+      {aiming || watching ? null : (
         <ScrollView style={styles.answer} testID="guide-answer">
           <Text style={styles.answerText}>{answer || transcriptLine(transcript) || "Ask a question."}</Text>
         </ScrollView>
