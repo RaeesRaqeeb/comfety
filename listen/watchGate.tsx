@@ -5,7 +5,8 @@ export function canWatchHere(): boolean {
 export function WatchScreen(_props: {
   onWarning: (phrase: string) => void;
   onReady: (phrase: string) => void;
-  onUnavailable: () => void;
+  onCameraDenied: () => void;
+  onModelError: () => void;
 }) {
   return null;
 }

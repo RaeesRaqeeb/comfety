@@ -52,3 +52,40 @@ export function boxesFromYolo(boxesQ: ArrayLike<number>, scoresQ: ArrayLike<numb
   }
   return found;
 }
+
+export type RgbOrder = "rgb" | "rgba" | "bgra";
+
+export function stretchRgb(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  channels: number,
+  order: RgbOrder,
+): Uint8Array {
+  "worklet";
+  const dst = new Uint8Array(MODEL_INPUT * MODEL_INPUT * 3);
+  const srcW = Math.trunc(width);
+  const srcH = Math.trunc(height);
+  const stride = Math.trunc(bytesPerRow);
+  const count = Math.trunc(channels);
+  if (srcW < 1 || srcH < 1 || count < 3 || stride < srcW * count) {
+    return dst;
+  }
+  const redAt = order === "bgra" ? 2 : 0;
+  const blueAt = order === "bgra" ? 0 : 2;
+  for (let y = 0; y < MODEL_INPUT; y += 1) {
+    const srcY = Math.floor((y * srcH) / MODEL_INPUT);
+    const row = srcY * stride;
+    const dstRow = y * MODEL_INPUT * 3;
+    for (let x = 0; x < MODEL_INPUT; x += 1) {
+      const srcX = Math.floor((x * srcW) / MODEL_INPUT);
+      const pixel = row + srcX * count;
+      const out = dstRow + x * 3;
+      dst[out] = pixels[pixel + redAt] ?? 0;
+      dst[out + 1] = pixels[pixel + 1] ?? 0;
+      dst[out + 2] = pixels[pixel + blueAt] ?? 0;
+    }
+  }
+  return dst;
+}

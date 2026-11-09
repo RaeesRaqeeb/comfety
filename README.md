@@ -51,7 +51,7 @@ eas login
 eas build -p android --profile preview
 ```
 
-The `preview` profile is Android only. `android.buildType` is `apk`, so the build runs `:app:assembleRelease`. The JavaScript bundle is inside the APK. It is not a development client, and the phone does not need Metro. When the build finishes, that command prints the install link. Install the APK from the link with the USB cable unplugged. The phone needs Android 8 or newer.
+The `preview` profile is Android only. `android.buildType` is `apk`, so the build runs `:app:assembleRelease`. The JavaScript bundle is inside the APK. It is not a development client, and the phone does not need Metro. When the build finishes, that command prints the install link. Install the APK from the link with the USB cable unplugged. The phone needs Android 8 or newer. The GPU resizer needs a newer phone, but the CPU path should still watch on Android 8.
 
 ## Worker stub
 

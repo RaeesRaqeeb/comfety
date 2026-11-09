@@ -393,6 +393,22 @@ export function GuidePanel() {
     sayStatus(NOT_WATCHING);
   }
 
+  function sayCameraStaysOff() {
+    stopRecognizer();
+    setWatching(false);
+    setNotice("The camera stays off.");
+    setAnswer("The camera stays off.");
+    sayStatus("The camera stays off.");
+  }
+
+  function sayModelDidNotLoad() {
+    stopRecognizer();
+    setWatching(false);
+    setNotice("The watcher model did not load.");
+    setAnswer("The watcher model did not load.");
+    sayStatus("The watcher model did not load.");
+  }
+
   function speakWatch(phrase: string) {
     stopRecognizer();
     void player.pause();
@@ -448,7 +464,12 @@ export function GuidePanel() {
       <Text style={styles.body}>This is not a cane.</Text>
       {watching ? (
         <>
-          <WatchScreen onWarning={speakWatch} onReady={speakWatch} onUnavailable={sayNotWatching} />
+          <WatchScreen
+            onWarning={speakWatch}
+            onReady={speakWatch}
+            onCameraDenied={sayCameraStaysOff}
+            onModelError={sayModelDidNotLoad}
+          />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Stop watching"

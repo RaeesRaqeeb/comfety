@@ -6,17 +6,55 @@ import type { Frame } from "react-native-vision-camera";
 import { useResizer } from "react-native-vision-camera-resizer";
 import { runOnJS } from "react-native-worklets";
 import { createWatcher, nextWarning, type Box } from "./warning";
-import { boxesFromYolo, MODEL_INPUT } from "./yolo";
+import { boxesFromYolo, MODEL_INPUT, stretchRgb, type RgbOrder } from "./yolo";
 
 export const WATCH_START = "Watching. I can miss things. This is not a cane.";
 
 export type ObstacleWatchProps = {
   onWarning: (phrase: string) => void;
   onReady: (phrase: string) => void;
-  onUnavailable: () => void;
+  onCameraDenied: () => void;
+  onModelError: () => void;
 };
 
-export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWatchProps) {
+function rgbFromFrame(frame: Frame): ArrayBuffer | null {
+  "worklet";
+  if (frame.isPlanar || !frame.hasPixelBuffer) {
+    return null;
+  }
+  const width = Math.trunc(frame.width);
+  const height = Math.trunc(frame.height);
+  const bytesPerRow = Math.trunc(frame.bytesPerRow);
+  if (width < 1 || height < 1) {
+    return null;
+  }
+  let channels = 0;
+  let order: RgbOrder = "rgb";
+  const pixelFormat = frame.pixelFormat;
+  if (pixelFormat === "rgb-bgra-8-bit") {
+    channels = 4;
+    order = "bgra";
+  } else if (pixelFormat === "rgb-rgba-8-bit") {
+    channels = 4;
+    order = "rgba";
+  } else if (pixelFormat === "rgb-rgb-8-bit") {
+    channels = bytesPerRow >= width * 4 ? 4 : 3;
+    order = "rgb";
+  } else {
+    return null;
+  }
+  if (bytesPerRow < width * channels) {
+    return null;
+  }
+  const pixels = new Uint8Array(frame.getPixelBuffer());
+  const last = (height - 1) * bytesPerRow + (width - 1) * channels + 2;
+  if (pixels.length <= last) {
+    return null;
+  }
+  return stretchRgb(pixels, width, height, bytesPerRow, channels, order).buffer as ArrayBuffer;
+}
+
+export function ObstacleWatch({ onWarning, onReady, onCameraDenied, onModelError }: ObstacleWatchProps) {
   const permission = useCameraPermission();
   const model = useTensorflowModel(require("../assets/models/yolo11n-int8.tflite"), []);
   const resizerState = useResizer({
@@ -27,16 +65,21 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
     scaleMode: "stretch",
     pixelLayout: "interleaved",
   });
+  const cpuFallback = resizerState.state === "error";
+  const framesReady = resizerState.state === "ready" || cpuFallback;
   const watcher = useRef(createWatcher());
   const pace = useRef({ at: 0 }).current;
   const asked = useRef(false);
   const announced = useRef(false);
+  const mounted = useRef(true);
   const warnRef = useRef(onWarning);
   const readyRef = useRef(onReady);
-  const unavailableRef = useRef(onUnavailable);
+  const deniedRef = useRef(onCameraDenied);
+  const modelErrorRef = useRef(onModelError);
   warnRef.current = onWarning;
   readyRef.current = onReady;
-  unavailableRef.current = onUnavailable;
+  deniedRef.current = onCameraDenied;
+  modelErrorRef.current = onModelError;
 
   const accept = useCallback((boxes: Box[]) => {
     const step = nextWarning(watcher.current, boxes, Date.now());
@@ -51,7 +94,7 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
       "worklet";
       const current = model.model;
       const resizer = resizerState.resizer;
-      if (current == null || resizer == null) {
+      if (current == null || (resizer == null && !cpuFallback)) {
         frame.dispose();
         return;
       }
@@ -62,22 +105,30 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
       }
       pace.at = now;
       try {
-        const resized = resizer.resize(frame);
-        try {
-          const buffer = resized.getPixelBuffer();
-          const outputs = current.runSync([buffer]);
-          let boxesBuf = outputs[0];
-          let scoresBuf = outputs[1];
-          if (boxesBuf != null && scoresBuf != null) {
-            if (boxesBuf.byteLength > scoresBuf.byteLength) {
-              const swap = boxesBuf;
-              boxesBuf = scoresBuf;
-              scoresBuf = swap;
-            }
-            runOnJS(accept)(boxesFromYolo(new Int8Array(boxesBuf), new Int8Array(scoresBuf)));
+        let input: ArrayBuffer | null = null;
+        if (resizer != null) {
+          const resized = resizer.resize(frame);
+          try {
+            input = resized.getPixelBuffer();
+          } finally {
+            resized.dispose();
           }
-        } finally {
-          resized.dispose();
+        } else {
+          input = rgbFromFrame(frame);
+        }
+        if (input == null) {
+          return;
+        }
+        const outputs = current.runSync([input]);
+        let boxesBuf = outputs[0];
+        let scoresBuf = outputs[1];
+        if (boxesBuf != null && scoresBuf != null) {
+          if (boxesBuf.byteLength > scoresBuf.byteLength) {
+            const swap = boxesBuf;
+            boxesBuf = scoresBuf;
+            scoresBuf = swap;
+          }
+          runOnJS(accept)(boxesFromYolo(new Int8Array(boxesBuf), new Int8Array(scoresBuf)));
         }
       } catch {
         return;
@@ -85,7 +136,7 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
         frame.dispose();
       }
     },
-    [accept, model.model, pace, resizerState.resizer],
+    [accept, cpuFallback, model.model, pace, resizerState.resizer],
   );
 
   const frameOutput = useFrameOutput({
@@ -96,30 +147,36 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
   });
 
   useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (permission.hasPermission || asked.current) {
       return;
     }
     asked.current = true;
     void permission.requestPermission().then((ok) => {
-      if (!ok) {
-        unavailableRef.current();
+      if (!ok && mounted.current) {
+        deniedRef.current();
       }
     });
   }, [permission]);
 
   useEffect(() => {
-    if (model.state === "error" || resizerState.state === "error") {
-      unavailableRef.current();
+    if (model.state === "error") {
+      modelErrorRef.current();
     }
-  }, [model.state, resizerState.state]);
+  }, [model.state]);
 
   useEffect(() => {
-    if (model.state !== "loaded" || resizerState.state !== "ready" || !permission.hasPermission || announced.current) {
+    if (model.state !== "loaded" || !framesReady || !permission.hasPermission || announced.current) {
       return;
     }
     announced.current = true;
     readyRef.current(WATCH_START);
-  }, [model.state, permission.hasPermission, resizerState.state]);
+  }, [framesReady, model.state, permission.hasPermission]);
 
   if (!permission.hasPermission) {
     return null;
@@ -128,7 +185,7 @@ export function ObstacleWatch({ onWarning, onReady, onUnavailable }: ObstacleWat
   return (
     <Camera
       style={styles.preview}
-      isActive={model.state === "loaded" && resizerState.state === "ready"}
+      isActive={model.state === "loaded" && framesReady}
       device="back"
       outputs={[frameOutput]}
     />

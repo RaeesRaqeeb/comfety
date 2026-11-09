@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { boxesFromYolo, BOX_SCALE, BOX_ZERO, SCORE_SCALE, SCORE_ZERO } from "./yolo.ts";
+import { boxesFromYolo, BOX_SCALE, BOX_ZERO, MODEL_INPUT, SCORE_SCALE, SCORE_ZERO, stretchRgb } from "./yolo.ts";
 import { createWatcher, nextWarning } from "./warning.ts";
 
 function quant(real, scale, zero) {
@@ -39,4 +39,36 @@ step = nextWarning(step.state, found, 100);
 assert.equal(step.speak, null);
 step = nextWarning(step.state, found, 200);
 assert.equal(step.speak, "Person close on the left");
+
+function rgbAt(buffer, x, y) {
+  const index = (y * MODEL_INPUT + x) * 3;
+  return [buffer[index], buffer[index + 1], buffer[index + 2]];
+}
+
+const frameW = 4;
+const frameH = 2;
+const rgbChannels = 3;
+const stride = 16;
+const rgb = new Uint8Array(stride * frameH);
+rgb[1 * stride + 2 * rgbChannels] = 9;
+rgb[1 * stride + 2 * rgbChannels + 1] = 8;
+rgb[1 * stride + 2 * rgbChannels + 2] = 7;
+rgb[0 * stride + 1 * rgbChannels] = 1;
+rgb[0 * stride + 1 * rgbChannels + 1] = 2;
+rgb[0 * stride + 1 * rgbChannels + 2] = 3;
+rgb[stride - 1] = 255;
+rgb[stride * frameH - 1] = 255;
+const stretched = stretchRgb(rgb, frameW, frameH, stride, rgbChannels, "rgb");
+assert.equal(stretched.length, MODEL_INPUT * MODEL_INPUT * 3);
+assert.deepEqual(rgbAt(stretched, 320, 320), [9, 8, 7]);
+assert.deepEqual(rgbAt(stretched, 319, 319), [1, 2, 3]);
+
+const bgra = new Uint8Array([4, 5, 6, 255, 0, 0, 0, 0]);
+const fromBgra = stretchRgb(bgra, 1, 1, 8, 4, "bgra");
+assert.deepEqual(rgbAt(fromBgra, 0, 0), [6, 5, 4]);
+assert.deepEqual(rgbAt(fromBgra, 639, 639), [6, 5, 4]);
+
+const rgba = new Uint8Array([9, 8, 7, 1]);
+const fromRgba = stretchRgb(rgba, 1, 1, 4, 4, "rgba");
+assert.deepEqual(rgbAt(fromRgba, 100, 200), [9, 8, 7]);
 console.log("yolo decode ok");
