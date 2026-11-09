@@ -1,0 +1,16 @@
+diff --git a/node_modules/@elevenlabs/client/dist/scribe/connection.js b/node_modules/@elevenlabs/client/dist/scribe/connection.js
+index 6a9f62b..f1408c0 100644
+--- a/node_modules/@elevenlabs/client/dist/scribe/connection.js
++++ b/node_modules/@elevenlabs/client/dist/scribe/connection.js
+@@ -323,8 +323,9 @@ export class RealtimeConnection {
+             // yields code 1006, which would otherwise log/emit as an unexpected error.
+             if (!appInitiated) {
+                 console.log(`WebSocket closed: code=${event.code}, reason="${event.reason}", wasClean=${event.wasClean}`);
+-                // Emit error if close was not clean or had an error code
+-                if (!event.wasClean || (event.code !== 1000 && event.code !== 1005)) {
++                // 1000 and 1005 are normal closes. React Native reports wasClean
++                // false for code 1000, which would otherwise show up in LogBox.
++                if (event.code !== 1000 && event.code !== 1005) {
+                     const errorMessage = `WebSocket closed unexpectedly: ${event.code} - ${event.reason || "No reason provided"}`;
+                     console.error(errorMessage);
+                     this._emitError(new Error(errorMessage));

@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -26,7 +27,8 @@
     "listen": "node --experimental-strip-types --env-file=.env.local scripts/listen-server.mjs",
     "android": "expo start --android --port 8421",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
-    "test": "node --experimental-strip-types worker/test/health.test.mjs && node --experimental-strip-types worker/test/scribe.test.mjs && node --experimental-strip-types worker/test/speak.test.mjs && node --experimental-strip-types listen/scribe.test.mjs"
+    "test": "node --experimental-strip-types worker/test/health.test.mjs && node --experimental-strip-types worker/test/scribe.test.mjs && node --experimental-strip-types worker/test/speak.test.mjs && node --experimental-strip-types listen/scribe.test.mjs",
+    "postinstall": "patch-package"
   },
   "private": true
 }

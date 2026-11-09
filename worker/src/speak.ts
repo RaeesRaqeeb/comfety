@@ -2,7 +2,8 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { demoGate, json } from "./scribe-token.ts";
 
 export const SPEAK_MODEL = "eleven_v4_turbo";
-export const SPEAK_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+// Bella, a premade voice. The old default library voice is rejected on a free key.
+export const SPEAK_VOICE_ID = "hpp4J3VqNfWAUOO0d1Us";
 
 type SecretEnv = {
   ELEVENLABS_API_KEY: string;

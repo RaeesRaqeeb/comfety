@@ -58,6 +58,7 @@ try {
   const spoken = await worker.fetch(speakRequest(env.DEMO_SECRET, typed), env);
   assert.equal(spoken.status, 200);
   assert.match(spoken.headers.get("content-type") ?? "", /audio\/mpeg/);
+  assert.equal(SPEAK_VOICE_ID, "hpp4J3VqNfWAUOO0d1Us");
   assert.equal(upstreamUrl.includes(`/v1/text-to-speech/${SPEAK_VOICE_ID}`), true);
   assert.equal(upstreamUrl.includes("language_code"), false);
   assert.equal(upstreamKey, env.ELEVENLABS_API_KEY);
