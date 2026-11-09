@@ -84,9 +84,9 @@ Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SEC
 npm run listen
 ```
 
-That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token` and `http://<this-machine>:8791/v1/speak`. `GEMINI_API_KEY` can stay empty for this test.
+That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`, `http://<this-machine>:8791/v1/speak`, and `http://<this-machine>:8791/v1/guide`. Put `GEMINI_API_KEY` in `.env.local` for Guide. Restart `npm run listen` after adding it.
 
-Anything other than `GET /health`, `POST /v1/scribe-token`, and `POST /v1/speak` returns 404. Responses never include secret values.
+Anything other than `GET /health`, `POST /v1/scribe-token`, `POST /v1/speak`, and `POST /v1/guide` returns 404. Responses never include secret values.
 
 ## Mixed-sentence test
 
@@ -95,6 +95,10 @@ On the phone, in Expo Go, open the dev server. Tap **Talk**, then **Listen**. Al
 Pass means that one transcript line shows the Urdu words and the English word “cash”. Tap **Stop** when you are done.
 
 Type a reply and tap **Speak**. The app stops listening, then plays that text exactly as typed. The row above the box is saved replies. Tap one to speak it. Tap **+** to save what is in the box. Hold a reply to change it, then tap **+**. Tap **×** to delete it. The phone keeps that list. The status says “Speaking” while the audio plays, then “Paused”. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
+
+## Guide
+
+Tap **Guide**, then **Talk**, and ask a question. The app answers in a few short sentences and speaks them with the voice you last chose. Then say “سمجھ نہیں آئی”. The next answer uses shorter words and one concrete example. The camera stays off. This is not a cane.
 
 ## With no network
 

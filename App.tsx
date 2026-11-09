@@ -5,6 +5,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { GuidePanel } from "./listen/GuidePanel";
 import { ListenPanel } from "./listen/ListenPanel";
 
 const FONT = "Noto Nastaliq Urdu";
@@ -58,7 +59,7 @@ function Home() {
         <ChoiceButton
           title="Talk"
           selected={choice === "talk"}
-          compact={choice === "talk"}
+          compact={choice !== null}
           hint="Selects Talk. Listening starts only from the Listen button."
           body="The microphone hears the other person, or your question. It is off until you tap Listen."
           onPress={() => setChoice("talk")}
@@ -67,7 +68,7 @@ function Home() {
         <ChoiceButton
           title="Guide"
           selected={choice === "guide"}
-          compact={choice === "talk"}
+          compact={choice !== null}
           hint="Selects Guide. Does not turn the camera on."
           body="The camera looks only after you ask. It is off. This is not a cane."
           onPress={() => setChoice("guide")}
@@ -78,6 +79,8 @@ function Home() {
         </Text>
         {choice === "talk" ? (
           <ListenPanel />
+        ) : choice === "guide" ? (
+          <GuidePanel />
         ) : fontReady ? (
           <View testID="urdu-sample">
             <Text style={styles.body}>Set in Noto Nastaliq Urdu.</Text>
