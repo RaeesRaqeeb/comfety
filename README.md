@@ -19,7 +19,7 @@ One screen. Black background, white text, transcript-sized type.
 - It does not open the camera, describe a scene, read a label, or warn about obstacles.
 - It does not give a dose. A later reading of a medicine label has to end with: "I can read the words. I cannot tell you how much to take."
 - It has no accounts, no API keys, and no calls to ElevenLabs, Gemini, or any other vendor.
-- There is no installable APK. EAS is not part of this slice.
+- There is no install link in the repo. Building the preview APK needs your Expo account.
 - The worker is not deployed. It does not mint a speech token or forward speak, guide, or look requests.
 
 ## Run the app locally
@@ -31,7 +31,26 @@ npm install
 npm start
 ```
 
-`npm start` runs the Expo dev server on port 8421. With an Android emulator or a phone connected, `npm run android` opens it. This slice boots from that dev server. A later build is a release APK with the bundle inside it. Expo Go is not the graded demo.
+`npm start` runs the Expo dev server on port 8421. With an Android emulator or a phone connected, `npm run android` opens it. That dev server is for local work. Expo Go is not the graded demo.
+
+## Preview APK
+
+An Expo account is required. Sign up at [expo.dev](https://expo.dev) if you do not have one. This repo does not contain the account, a token, or an install link.
+
+Install EAS CLI:
+
+```bash
+npm install --global eas-cli
+```
+
+Log in, then build the Android preview APK:
+
+```bash
+eas login
+eas build -p android --profile preview
+```
+
+The `preview` profile is Android only. `android.buildType` is `apk`, so the build runs `:app:assembleRelease`. The JavaScript bundle is inside the APK. It is not a development client, and the phone does not need Metro. When the build finishes, that command prints the install link. Install the APK from the link with the USB cable unplugged.
 
 ## Worker stub
 
