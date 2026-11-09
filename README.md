@@ -72,26 +72,19 @@ npx tsc --noEmit -p worker/tsconfig.json
 
 Those three names are the worker's environment. Values are secrets. They are not in this repo. Do not deploy this worker.
 
-Create `worker/.dev.vars` on this machine (it is gitignored):
-
-```
-ELEVENLABS_API_KEY=
-DEMO_SECRET=
-```
-
-Put the ElevenLabs key in `ELEVENLABS_API_KEY`. Pick any long random string for `DEMO_SECRET`. Create `.env` at the repo root (also gitignored) with the same demo string:
+`ELEVENLABS_API_KEY` is read from `.env.local` (gitignored). Add a long random `DEMO_SECRET` to that same file. Create `.env` at the repo root (also gitignored) with the same demo string:
 
 ```
 EXPO_PUBLIC_DEMO_SECRET=
 ```
 
-Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SECRET` at startup. Then, from `worker/`:
+Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SECRET` at startup. Then, from the repo root:
 
 ```bash
-npx wrangler dev --ip 0.0.0.0 --port 8791
+npm run listen
 ```
 
-The phone calls `http://<this-machine>:8791/v1/scribe-token`. `GEMINI_API_KEY` can stay empty for this test.
+That starts the token server on port 8791 and loads `.env.local`. The phone calls `http://<this-machine>:8791/v1/scribe-token`. `GEMINI_API_KEY` can stay empty for this test.
 
 Anything other than `GET /health` and `POST /v1/scribe-token` returns 404. Responses never include secret values.
 

@@ -3,19 +3,19 @@ import {
   applyScribeMessage,
   audioChunkMessage,
   resamplePcm16,
-  scribeSocketUrl,
+  scribeSession,
   transcriptLine,
 } from "./scribe.ts";
 
-const url = new URL(scribeSocketUrl("sutkn_test"));
-assert.equal(url.origin + url.pathname, "wss://api.elevenlabs.io/v1/speech-to-text/realtime");
-assert.equal(url.searchParams.get("model_id"), "scribe_v2_realtime");
-assert.equal(url.searchParams.get("language_code"), "ur");
-assert.deepEqual(url.searchParams.getAll("secondary_languages"), ["en"]);
-assert.equal(url.searchParams.get("filter_background_audio"), "true");
-assert.equal(url.searchParams.get("audio_format"), "pcm_16000");
-assert.equal(url.searchParams.get("token"), "sutkn_test");
-assert.equal(url.search.includes("xi-api-key"), false);
+const session = scribeSession("sutkn_test");
+assert.equal(session.modelId, "scribe_v2_realtime");
+assert.equal(session.languageCode, "ur");
+assert.deepEqual(session.secondaryLanguages, ["en"]);
+assert.equal(session.filterBackgroundAudio, true);
+assert.equal(session.commitStrategy, "vad");
+assert.equal(session.audioFormat, "pcm_16000");
+assert.equal(session.token, "sutkn_test");
+assert.equal(JSON.stringify(session).includes("xi-api-key"), false);
 
 const partial = applyScribeMessage(
   { committed: [], partial: "" },

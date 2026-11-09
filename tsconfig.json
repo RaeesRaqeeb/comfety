@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["worker"]
+  "exclude": ["worker", "scripts"]
 }

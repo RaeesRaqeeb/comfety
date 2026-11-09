@@ -5,17 +5,17 @@ export type Transcript = {
   partial: string;
 };
 
-export function scribeSocketUrl(token: string): string {
-  const params = new URLSearchParams();
-  params.set("model_id", "scribe_v2_realtime");
-  params.set("token", token);
-  params.set("language_code", "ur");
-  params.append("secondary_languages", "en");
-  params.set("filter_background_audio", "true");
-  params.set("audio_format", "pcm_16000");
-  params.set("commit_strategy", "vad");
-  params.set("enable_logging", "false");
-  return `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`;
+export function scribeSession(token: string) {
+  return {
+    token,
+    modelId: "scribe_v2_realtime",
+    languageCode: "ur",
+    secondaryLanguages: ["en"],
+    filterBackgroundAudio: true,
+    commitStrategy: "vad" as const,
+    audioFormat: "pcm_16000" as const,
+    sampleRate: 16000,
+  };
 }
 
 export function applyScribeMessage(state: Transcript, message: unknown): Transcript {

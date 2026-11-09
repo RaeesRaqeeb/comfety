@@ -1,4 +1,4 @@
-const TOKEN_URL = "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 type SecretEnv = {
   ELEVENLABS_API_KEY: string;
@@ -36,7 +36,7 @@ export async function scribeTokenResponse(request: Request, env: SecretEnv): Pro
   }
   if (!env.DEMO_SECRET) {
     return json(
-      { error: "DEMO_SECRET is not set. Put it in worker/.dev.vars." },
+      { error: "DEMO_SECRET is not set. Put it in .env.local." },
       500,
     );
   }
@@ -44,7 +44,7 @@ export async function scribeTokenResponse(request: Request, env: SecretEnv): Pro
     return json(
       {
         error:
-          "ELEVENLABS_API_KEY is not set. Put it in worker/.dev.vars.",
+          "ELEVENLABS_API_KEY is not set. Put it in .env.local and run npm run listen.",
       },
       500,
     );
@@ -54,30 +54,15 @@ export async function scribeTokenResponse(request: Request, env: SecretEnv): Pro
     return json({ error: "The demo secret does not match." }, 401);
   }
 
-  let upstream: Response;
   try {
-    upstream = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: { "xi-api-key": env.ELEVENLABS_API_KEY },
-    });
-  } catch {
-    return json({ error: "No network." }, 502);
-  }
-  if (!upstream.ok) {
-    return json({ error: "Scribe token request failed." }, 502);
-  }
-
-  let token = "";
-  try {
-    const body = (await upstream.json()) as { token?: unknown };
-    if (typeof body.token === "string") {
-      token = body.token;
+    const created = await new ElevenLabsClient({
+      apiKey: env.ELEVENLABS_API_KEY,
+    }).tokens.singleUse.create("realtime_scribe");
+    if (!created.token) {
+      return json({ error: "Scribe token request failed." }, 502);
     }
+    return json({ token: created.token }, 200);
   } catch {
-    token = "";
-  }
-  if (!token) {
     return json({ error: "Scribe token request failed." }, 502);
   }
-  return json({ token }, 200);
 }

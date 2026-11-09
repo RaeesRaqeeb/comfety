@@ -23,7 +23,7 @@ try {
   });
   assert.equal(missingSecret.status, 500);
   const missingSecretBody = await missingSecret.text();
-  assert.match(missingSecretBody, /worker\/\.dev\.vars/);
+  assert.match(missingSecretBody, /\.env\.local/);
   assert.equal(missingSecretBody.includes(env.ELEVENLABS_API_KEY), false);
 
   const missingKey = await worker.fetch(tokenRequest(env.DEMO_SECRET), {
@@ -33,7 +33,7 @@ try {
   assert.equal(missingKey.status, 500);
   const missingKeyBody = await missingKey.text();
   assert.match(missingKeyBody, /ELEVENLABS_API_KEY is not set/);
-  assert.match(missingKeyBody, /worker\/\.dev\.vars/);
+  assert.match(missingKeyBody, /\.env\.local/);
   assert.equal(missingKeyBody.includes("eleven-secret-value"), false);
 
   const rejected = await worker.fetch(tokenRequest("wrong"), env);
@@ -43,7 +43,12 @@ try {
   let upstreamUrl = "";
   globalThis.fetch = async (input, init) => {
     upstreamUrl = String(input);
-    upstreamKey = init?.headers?.["xi-api-key"] ?? "";
+    const headers = init?.headers;
+    if (headers && typeof headers.get === "function") {
+      upstreamKey = headers.get("xi-api-key") ?? "";
+    } else {
+      upstreamKey = headers?.["xi-api-key"] ?? "";
+    }
     return Response.json({ token: "sutkn_test" });
   };
   const minted = await worker.fetch(tokenRequest(env.DEMO_SECRET), env);

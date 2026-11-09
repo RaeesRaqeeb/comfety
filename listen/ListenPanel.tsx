@@ -3,12 +3,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
 import { requestRecordingPermissionsAsync, setAudioModeAsync, useAudioStream } from "expo-audio";
 import type { AudioStreamBuffer } from "expo-audio";
+import { AudioFormat, CommitStrategy, RealtimeEvents, Scribe } from "@elevenlabs/client";
+import type { RealtimeConnection } from "@elevenlabs/client";
 import {
   applyScribeMessage,
-  audioChunkMessage,
+  encodeBase64,
   monoPcm16,
   resamplePcm16,
-  scribeSocketUrl,
+  scribeSession,
   transcriptLine,
   type Transcript,
 } from "./scribe";
@@ -16,9 +18,9 @@ import {
 const EMPTY: Transcript = { committed: [], partial: "" };
 
 const KEY_HINT =
-  "ELEVENLABS_API_KEY is not set. Put it in worker/.dev.vars on this machine, then start the worker.";
+  "ELEVENLABS_API_KEY is not set. It belongs in .env.local on this machine. Then run npm run listen.";
 const SECRET_HINT =
-  "DEMO_SECRET is not set. Put the same value in worker/.dev.vars and as EXPO_PUBLIC_DEMO_SECRET in .env at the repo root, then restart npm start.";
+  "DEMO_SECRET is not set. Add it to .env.local and set the same value as EXPO_PUBLIC_DEMO_SECRET in .env, then restart npm start and run npm run listen.";
 
 function workerBaseUrl(): string | null {
   const configured = process.env.EXPO_PUBLIC_WORKER_URL?.replace(/\/$/, "");
@@ -40,7 +42,7 @@ export function ListenPanel() {
   const [transcript, setTranscript] = useState<Transcript>(EMPTY);
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState("The microphone is off.");
-  const socketRef = useRef<WebSocket | null>(null);
+  const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
 
   const { stream } = useAudioStream({
@@ -51,8 +53,8 @@ export function ListenPanel() {
   });
 
   function sendBuffer(buffer: AudioStreamBuffer) {
-    const socket = socketRef.current;
-    if (!listeningRef.current || !socket || socket.readyState !== WebSocket.OPEN) {
+    const connection = connectionRef.current;
+    if (!listeningRef.current || !connection) {
       return;
     }
     const mono = monoPcm16(buffer.data, "int16", buffer.channels || 1);
@@ -60,17 +62,16 @@ export function ListenPanel() {
     if (pcm.length === 0) {
       return;
     }
-    socket.send(audioChunkMessage(pcm));
+    const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+    connection.send({ audioBase64: encodeBase64(bytes), sampleRate: 16000 });
   }
 
   function stop() {
     listeningRef.current = false;
     setListening(false);
-    const socket = socketRef.current;
-    socketRef.current = null;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
-    }
+    const connection = connectionRef.current;
+    connectionRef.current = null;
+    connection?.close();
     stream?.stop?.();
     setNotice("Paused");
   }
@@ -78,7 +79,7 @@ export function ListenPanel() {
   useEffect(() => {
     return () => {
       listeningRef.current = false;
-      socketRef.current?.close();
+      connectionRef.current?.close();
       stream?.stop?.();
     };
   }, [stream]);
@@ -121,34 +122,29 @@ export function ListenPanel() {
       return;
     }
 
-    const socket = new WebSocket(scribeSocketUrl(body.token));
-    socketRef.current = socket;
-    let rejectOpen: (error: Error) => void = () => {};
-    socket.onmessage = (event) => {
-      let message: unknown;
-      try {
-        message = JSON.parse(String(event.data));
-      } catch {
-        return;
-      }
-      const row = message as { message_type?: string; error?: string };
-      if (row.error) {
-        setNotice("Listening failed.");
-        return;
-      }
-      setTranscript((current) => applyScribeMessage(current, message));
-    };
-    socket.onerror = () => {
-      setNotice("No network.");
-      rejectOpen(new Error("socket"));
-    };
-    socket.onclose = () => {
+    const session = scribeSession(body.token);
+    const connection = Scribe.connect({
+      ...session,
+      audioFormat: AudioFormat.PCM_16000,
+      commitStrategy: CommitStrategy.VAD,
+    });
+    connectionRef.current = connection;
+    connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (data) => {
+      setTranscript((current) => applyScribeMessage(current, data));
+    });
+    connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (data) => {
+      setTranscript((current) => applyScribeMessage(current, data));
+    });
+    connection.on(RealtimeEvents.ERROR, () => {
+      setNotice("Listening failed.");
+    });
+    connection.on(RealtimeEvents.CLOSE, () => {
       if (listeningRef.current) {
         listeningRef.current = false;
         setListening(false);
         setNotice("Paused");
       }
-    };
+    });
 
     try {
       await setAudioModeAsync({
@@ -159,20 +155,20 @@ export function ListenPanel() {
         shouldRouteThroughEarpiece: false,
       });
       await new Promise<void>((resolve, reject) => {
-        rejectOpen = reject;
-        socket.onopen = () => resolve();
+        connection.on(RealtimeEvents.OPEN, () => resolve());
+        connection.on(RealtimeEvents.ERROR, () => reject(new Error("socket")));
       });
     } catch {
-      socket.close();
-      socketRef.current = null;
+      connection.close();
+      connectionRef.current = null;
       setNotice("No network.");
       return;
     }
     try {
       await stream.start();
     } catch {
-      socket.close();
-      socketRef.current = null;
+      connection.close();
+      connectionRef.current = null;
       setNotice("The microphone stays off.");
       return;
     }
