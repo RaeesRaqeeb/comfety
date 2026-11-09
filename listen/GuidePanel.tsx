@@ -57,12 +57,11 @@ export function GuidePanel() {
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState("The microphone is off.");
   const [answer, setAnswer] = useState("");
-  const [cameraOn, setCameraOn] = useState(false);
+  const [aiming, setAiming] = useState<"describe" | "read" | null>(null);
   const [, requestCameraPermission] = useCameraPermissions();
   const previousRef = useRef("");
   const transcriptRef = useRef<Transcript>(EMPTY);
   const cameraRef = useRef<CameraView>(null);
-  const cameraReadyRef = useRef<(() => void) | null>(null);
   const busyRef = useRef(false);
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
@@ -288,21 +287,41 @@ export function GuidePanel() {
     sayStatus("Listening");
   }
 
-  async function captureJpeg(): Promise<string | null> {
-    setCameraOn(true);
+  async function openCamera(mode: "describe" | "read") {
+    if (busyRef.current) {
+      return;
+    }
+    stopRecognizer();
+    if (Platform.OS === "web") {
+      setNotice("Open this screen in Expo Go on the phone. This browser preview has no camera.");
+      return;
+    }
+    const permission = await requestCameraPermission();
+    if (!permission.granted) {
+      setNotice("The camera stays off.");
+      return;
+    }
+    setAiming(mode);
     setNotice("Camera on");
     sayStatus("Camera on");
-    const ready = new Promise<void>((resolve) => {
-      cameraReadyRef.current = resolve;
-    });
-    const opened = await Promise.race([
-      ready.then(() => true),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8000)),
-    ]);
-    if (!opened || !cameraRef.current) {
-      setCameraOn(false);
-      return null;
+  }
+
+  function closeCamera() {
+    if (busyRef.current) {
+      return;
     }
+    setAiming(null);
+    setNotice("The camera is off.");
+    sayStatus("The camera is off.");
+  }
+
+  async function takePhoto() {
+    if (!aiming || busyRef.current || !cameraRef.current) {
+      return;
+    }
+    const mode = aiming;
+    busyRef.current = true;
+    let image = "";
     try {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.4, shutterSound: false });
       const resized = await manipulateAsync(picture.uri, [{ resize: { width: 1024 } }], {
@@ -310,35 +329,17 @@ export function GuidePanel() {
         format: SaveFormat.JPEG,
         base64: true,
       });
-      return resized.base64 ?? null;
+      image = resized.base64 ?? "";
     } catch {
-      return null;
-    } finally {
-      setCameraOn(false);
+      image = "";
     }
-  }
-
-  async function look(mode: "describe" | "read") {
-    if (busyRef.current) {
+    setAiming(null);
+    if (!image) {
+      busyRef.current = false;
+      setNotice("The camera stays off.");
       return;
     }
-    busyRef.current = true;
-    stopRecognizer();
     try {
-      if (Platform.OS === "web") {
-        setNotice("Open this screen in Expo Go on the phone. This browser preview has no camera.");
-        return;
-      }
-      const permission = await requestCameraPermission();
-      if (!permission.granted) {
-        setNotice("The camera stays off.");
-        return;
-      }
-      const image = await captureJpeg();
-      if (!image) {
-        setNotice("The camera stays off.");
-        return;
-      }
       const secret = process.env.EXPO_PUBLIC_DEMO_SECRET ?? "";
       const base = workerBaseUrl();
       if (!secret || !base) {
@@ -390,7 +391,7 @@ export function GuidePanel() {
     }
     const mode = lookIntent(line);
     if (mode) {
-      await look(mode);
+      await openCamera(mode);
       return;
     }
     await ask(line);
@@ -399,6 +400,39 @@ export function GuidePanel() {
   return (
     <View style={styles.panel} testID="guide-panel">
       <Text style={styles.body}>This is not a cane.</Text>
+      {aiming ? (
+        <>
+          <CameraView
+            ref={cameraRef}
+            facing="back"
+            mute
+            mode="picture"
+            ratio="4:3"
+            style={styles.preview}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take photo"
+            onPress={() => {
+              void takePhoto();
+            }}
+            testID="look-take"
+            style={({ pressed }) => [styles.talk, pressed && styles.pressed]}
+          >
+            <Text style={styles.talkTitle}>Take photo</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            onPress={closeCamera}
+            testID="look-cancel"
+            style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+          >
+            <Text style={styles.lookTitle}>Cancel</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={listening ? "Stop" : "Talk"}
@@ -418,7 +452,7 @@ export function GuidePanel() {
         accessibilityRole="button"
         accessibilityLabel="What's in front of me"
         onPress={() => {
-          void look("describe");
+          void openCamera("describe");
         }}
         testID="look-describe"
         style={({ pressed }) => [styles.look, pressed && styles.pressed]}
@@ -429,29 +463,23 @@ export function GuidePanel() {
         accessibilityRole="button"
         accessibilityLabel="Read this"
         onPress={() => {
-          void look("read");
+          void openCamera("read");
         }}
         testID="look-read"
         style={({ pressed }) => [styles.look, pressed && styles.pressed]}
       >
         <Text style={styles.lookTitle}>Read this</Text>
       </Pressable>
-      {cameraOn ? (
-        <CameraView
-          ref={cameraRef}
-          facing="back"
-          mute
-          mode="picture"
-          onCameraReady={() => cameraReadyRef.current?.()}
-          style={styles.preview}
-        />
-      ) : null}
+        </>
+      )}
       <Text accessibilityLiveRegion="polite" style={styles.status} testID="guide-status">
         {notice}
       </Text>
-      <Text style={styles.answer} testID="guide-answer">
-        {answer || transcriptLine(transcript) || "Ask a question."}
-      </Text>
+      {aiming ? null : (
+        <Text style={styles.answer} testID="guide-answer">
+          {answer || transcriptLine(transcript) || "Ask a question."}
+        </Text>
+      )}
     </View>
   );
 }
@@ -497,7 +525,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   preview: {
-    height: 72,
+    flex: 1,
+    width: "100%",
   },
   status: {
     color: "#ffffff",
