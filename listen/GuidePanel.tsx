@@ -57,7 +57,7 @@ export function GuidePanel() {
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState("The microphone is off.");
   const [answer, setAnswer] = useState("");
-  const [aiming, setAiming] = useState<"describe" | "read" | null>(null);
+  const [aiming, setAiming] = useState<"describe" | "read" | "ground" | null>(null);
   const [, requestCameraPermission] = useCameraPermissions();
   const previousRef = useRef("");
   const transcriptRef = useRef<Transcript>(EMPTY);
@@ -287,7 +287,7 @@ export function GuidePanel() {
     sayStatus("Listening");
   }
 
-  async function openCamera(mode: "describe" | "read") {
+  async function openCamera(mode: "describe" | "read" | "ground") {
     if (busyRef.current) {
       return;
     }
@@ -469,6 +469,17 @@ export function GuidePanel() {
         style={({ pressed }) => [styles.look, pressed && styles.pressed]}
       >
         <Text style={styles.lookTitle}>Read this</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Check the ground"
+        onPress={() => {
+          void openCamera("ground");
+        }}
+        testID="look-ground"
+        style={({ pressed }) => [styles.look, pressed && styles.pressed]}
+      >
+        <Text style={styles.lookTitle}>Check the ground</Text>
       </Pressable>
         </>
       )}

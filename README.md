@@ -100,7 +100,7 @@ Type a reply and tap **Speak**. The app stops listening, then plays that text ex
 
 Tap **Guide**, then **Talk**, and ask a question. The app answers in a few short sentences and speaks them with the voice you last chose. Then say “سمجھ نہیں آئی”. The next answer uses shorter words and one concrete example.
 
-**What’s in front of me** opens the camera. Aim, then tap **Take photo**. It speaks what is in that photo. **Read this** works the same way and speaks the words it can see. You can say those phrases after **Talk** as well. A medicine label ends with “I can read the words. I cannot tell you how much to take.” The camera stays off until you ask. This is not a cane.
+**What’s in front of me** opens the camera. Aim, then tap **Take photo**. It speaks what is in that photo. **Read this** works the same way and speaks the words it can see. **Check the ground** takes one photo of the ground while you stand still. It may say possible stairs, an open drain, a vehicle, or a person, and it says it is not sure. If it sees none of those, it says it can still miss them. It never says the way is clear. You can say those phrases after **Talk** as well. A medicine label ends with “I can read the words. I cannot tell you how much to take.” The camera stays off until you ask. This is not a cane.
 
 ## With no network
 

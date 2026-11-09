@@ -9,9 +9,35 @@ type SecretEnv = {
   DEMO_SECRET: string;
 };
 
-type LookMode = "describe" | "read";
+type LookMode = "describe" | "read" | "ground";
+
+export const GROUND_DRAIN = "Possible open drain. I am not sure. Stay still.";
+export const GROUND_STAIRS = "Possible stairs. I am not sure. Stay still.";
+export const GROUND_VEHICLE = "Possible vehicle. I am not sure. Stay still.";
+export const GROUND_PERSON = "Possible person. I am not sure. Stay still.";
+export const GROUND_NONE = "I do not see those in this photo. I can still miss them.";
+export const GROUND_UNSURE = "I am not sure. Stay still.";
+
+export function groundLine(answer: string): string {
+  const word = (answer.trim().toLowerCase().split(/\s+/)[0] ?? "").replace(/[^a-z]/g, "");
+  if (word === "drain") return GROUND_DRAIN;
+  if (word === "stairs" || word === "stair") return GROUND_STAIRS;
+  if (word === "vehicle") return GROUND_VEHICLE;
+  if (word === "person") return GROUND_PERSON;
+  if (word === "none") return GROUND_NONE;
+  return GROUND_UNSURE;
+}
 
 export function buildLookPrompt(mode: LookMode): string {
+  if (mode === "ground") {
+    return [
+      "Look at the ground in this photo.",
+      "Reply with one word only: stairs, drain, vehicle, person, none, or unsure.",
+      "stairs means steps. drain means an open drain or a hole. vehicle means a car, motorcycle, bicycle, bus, or truck. person means a person.",
+      "none means you see none of those. unsure means you cannot tell.",
+      "Do not describe anything else. Do not say the way is clear or safe.",
+    ].join("\n");
+  }
   if (mode === "read") {
     return [
       "Read the words you can see in this photo.",
@@ -81,8 +107,8 @@ export async function lookResponse(request: Request, env: SecretEnv): Promise<Re
   let image = "";
   try {
     const body = (await request.json()) as { mode?: unknown; image?: unknown };
-    if (body.mode === "read") {
-      mode = "read";
+    if (body.mode === "read" || body.mode === "ground") {
+      mode = body.mode;
     } else if (body.mode !== "describe") {
       return json({ error: "Choose a look." }, 400);
     }
@@ -144,6 +170,9 @@ export async function lookResponse(request: Request, env: SecretEnv): Promise<Re
   }
   if (mode === "read") {
     answer = finishReading(answer);
+  }
+  if (mode === "ground") {
+    answer = groundLine(answer);
   }
   return json({ text: answer }, 200);
 }

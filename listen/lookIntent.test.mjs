@@ -6,6 +6,8 @@ assert.equal(lookIntent("what is in front of me"), "describe");
 assert.equal(lookIntent("سامنے کیا ہے"), "describe");
 assert.equal(lookIntent("Read this"), "read");
 assert.equal(lookIntent("یہ پڑھو"), "read");
+assert.equal(lookIntent("check the ground"), "ground");
+assert.equal(lookIntent("زمین دیکھو"), "ground");
 assert.equal(lookIntent("what?"), null);
 assert.equal(lookIntent("Where is the door?"), null);
 

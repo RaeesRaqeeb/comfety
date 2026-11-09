@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import worker from "../src/index.ts";
-import { DOSAGE_LINE } from "../src/look.ts";
+import { DOSAGE_LINE, GROUND_DRAIN, GROUND_NONE, GROUND_UNSURE } from "../src/look.ts";
 
 const env = {
   ELEVENLABS_API_KEY: "eleven-secret-value",
@@ -68,6 +68,23 @@ try {
   const describedBody = await described.json();
   assert.equal(describedBody.text, "A white cup is on the table.");
   assert.equal(describedBody.text.includes(DOSAGE_LINE), false);
+
+  globalThis.fetch = async () =>
+    Response.json({ choices: [{ message: { content: "drain" } }] });
+  const drain = await worker.fetch(lookRequest(env.DEMO_SECRET, { mode: "ground", image }), env);
+  const drainBody = await drain.json();
+  assert.equal(drainBody.text, GROUND_DRAIN);
+  assert.equal(drainBody.text.includes("clear"), false);
+
+  globalThis.fetch = async () =>
+    Response.json({ choices: [{ message: { content: "The path is clear and safe." } }] });
+  const clear = await worker.fetch(lookRequest(env.DEMO_SECRET, { mode: "ground", image }), env);
+  assert.equal((await clear.json()).text, GROUND_UNSURE);
+
+  globalThis.fetch = async () =>
+    Response.json({ choices: [{ message: { content: "none" } }] });
+  const none = await worker.fetch(lookRequest(env.DEMO_SECRET, { mode: "ground", image }), env);
+  assert.equal((await none.json()).text, GROUND_NONE);
 
   console.log("look route ok");
 } finally {
