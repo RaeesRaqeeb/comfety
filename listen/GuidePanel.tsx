@@ -68,6 +68,7 @@ export function GuidePanel() {
   const busyRef = useRef(false);
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const listeningRef = useRef(false);
+  const modelErrorSaid = useRef(false);
   const player = useAudioPlayer(null);
   const { stream } = useAudioStream({
     sampleRate: 16000,
@@ -402,6 +403,10 @@ export function GuidePanel() {
   }
 
   function sayModelDidNotLoad() {
+    if (modelErrorSaid.current) {
+      return;
+    }
+    modelErrorSaid.current = true;
     stopRecognizer();
     setWatching(false);
     setNotice("The watcher model did not load.");
@@ -429,6 +434,7 @@ export function GuidePanel() {
       sayNotWatching();
       return;
     }
+    modelErrorSaid.current = false;
     setAiming(null);
     setNotice("Loading the watcher.");
     setWatching(true);

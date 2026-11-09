@@ -1,12 +1,49 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
-import { useTensorflowModel } from "react-native-fast-tflite";
+import { Asset } from "expo-asset";
+import { loadTensorflowModel, type TensorflowModel } from "react-native-fast-tflite";
 import { Camera, useCameraPermission, useFrameOutput } from "react-native-vision-camera";
 import type { Frame } from "react-native-vision-camera";
 import { useResizer } from "react-native-vision-camera-resizer";
 import { runOnJS } from "react-native-worklets";
+import { readableModelFile } from "./modelFile";
 import { createWatcher, nextWarning, type Box } from "./warning";
 import { boxesFromYolo, MODEL_INPUT, stretchRgb, type RgbOrder } from "./yolo";
+
+const WATCHER_MODEL = require("../assets/models/yolo11n-int8.tflite");
+
+function useWatcherModel(): { model: TensorflowModel | undefined; state: "loading" | "loaded" | "error" } {
+  const [model, setModel] = useState<TensorflowModel | undefined>(undefined);
+  const [state, setState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [asset] = await Asset.loadAsync(WATCHER_MODEL);
+        const url = readableModelFile(asset.localUri) ?? readableModelFile(asset.uri);
+        if (url == null) {
+          throw new Error("Watcher model file is not readable.");
+        }
+        const loaded = await loadTensorflowModel({ url }, []);
+        if (!cancelled) {
+          setModel(loaded);
+          setState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setState("error");
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { model, state };
+}
 
 export const WATCH_START = "Watching. I can miss things. This is not a cane.";
 
@@ -56,7 +93,7 @@ function rgbFromFrame(frame: Frame): ArrayBuffer | null {
 
 export function ObstacleWatch({ onWarning, onReady, onCameraDenied, onModelError }: ObstacleWatchProps) {
   const permission = useCameraPermission();
-  const model = useTensorflowModel(require("../assets/models/yolo11n-int8.tflite"), []);
+  const model = useWatcherModel();
   const resizerState = useResizer({
     width: MODEL_INPUT,
     height: MODEL_INPUT,
