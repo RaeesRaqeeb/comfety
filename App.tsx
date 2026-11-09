@@ -5,6 +5,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { ListenPanel } from "./listen/ListenPanel";
 
 const FONT = "Noto Nastaliq Urdu";
 const URDU_SAMPLE = "سمجھ نہیں آئی";
@@ -57,14 +58,16 @@ function Home() {
         <ChoiceButton
           title="Talk"
           selected={choice === "talk"}
-          hint="Selects Talk. Does not turn the microphone on."
-          body="The microphone hears the other person, or your question. It is off."
+          compact={choice === "talk"}
+          hint="Selects Talk. Listening starts only from the Listen button."
+          body="The microphone hears the other person, or your question. It is off until you tap Listen."
           onPress={() => setChoice("talk")}
           testID="talk-choice"
         />
         <ChoiceButton
           title="Guide"
           selected={choice === "guide"}
+          compact={choice === "talk"}
           hint="Selects Guide. Does not turn the camera on."
           body="The camera looks only after you ask. It is off. This is not a cane."
           onPress={() => setChoice("guide")}
@@ -73,7 +76,9 @@ function Home() {
         <Text accessibilityLiveRegion="polite" style={styles.body} testID="choice-status">
           {statusLine(choice)}
         </Text>
-        {fontReady ? (
+        {choice === "talk" ? (
+          <ListenPanel />
+        ) : fontReady ? (
           <View testID="urdu-sample">
             <Text style={styles.body}>Set in Noto Nastaliq Urdu.</Text>
             <Text style={styles.urdu}>{URDU_SAMPLE}</Text>
@@ -90,7 +95,7 @@ function Home() {
 
 function statusLine(choice: Choice | null): string {
   if (choice === "talk") {
-    return "Talk is selected. The microphone stays off.";
+    return "Talk is selected.";
   }
   if (choice === "guide") {
     return "Guide is selected. The camera stays off.";
@@ -103,6 +108,7 @@ function ChoiceButton({
   body,
   hint,
   selected,
+  compact,
   onPress,
   testID,
 }: {
@@ -110,6 +116,7 @@ function ChoiceButton({
   body: string;
   hint: string;
   selected: boolean;
+  compact: boolean;
   onPress: () => void;
   testID: string;
 }) {
@@ -123,6 +130,7 @@ function ChoiceButton({
       testID={testID}
       style={({ pressed }) => [
         styles.choice,
+        compact ? styles.choiceCompact : styles.choiceFill,
         selected ? styles.choiceOn : styles.choiceOff,
         pressed && styles.pressed,
       ]}
@@ -151,13 +159,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   choice: {
-    flex: 1,
-    minHeight: 0,
     justifyContent: "center",
     gap: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 2,
+  },
+  choiceFill: {
+    flex: 1,
+    minHeight: 0,
+  },
+  choiceCompact: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   choiceOff: {
     backgroundColor: "#000000",

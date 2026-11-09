@@ -1,6 +1,6 @@
 # Comfety
 
-Comfety is a phone held between two people. This slice is the Android home screen only.
+Comfety is a phone held between two people. This slice is the Android home screen and the mixed-sentence listen test.
 
 Talk is for someone who cannot speak. The phone would be held toward the other person. Guide is for someone who cannot see. Guide is not a cane, and it does not replace a sighted guide.
 
@@ -9,18 +9,19 @@ Talk is for someone who cannot speak. The phone would be held toward the other p
 One screen. Black background, white text, transcript-sized type.
 
 - **Talk** and **Guide** are the two choices. Tap one to select it. The screen shows that choice and leaves it selected.
-- The microphone sentence is on Talk: it hears the other person, or your question. Tapping does not turn the microphone on.
+- The microphone sentence is on Talk: it hears the other person, or your question. Tapping Talk does not turn the microphone on. **Listen** does, and **Stop** turns it off.
 - The camera sentence is on Guide: it looks only after you ask. Tapping does not turn the camera on. The same button says this is not a cane.
 - The Urdu line سمجھ نہیں آئی is drawn in Noto Nastaliq Urdu, the font file shipped at `assets/fonts/NotoNastaliqUrdu.ttf` (SIL Open Font License, `assets/fonts/OFL.txt`). The line appears only after that file has loaded. If it fails, the screen says so and does not substitute another font.
 
 ## What this slice does not do
 
-- It does not listen, transcribe, or speak.
+- It does not speak a reply.
+- Listen transcribes with ElevenLabs Scribe v2 Realtime. Urdu is `language_code=ur`, English is the secondary language, and `filter_background_audio` is on. The phone never holds the ElevenLabs key. The worker mints a single-use token.
 - It does not open the camera, describe a scene, read a label, or warn about obstacles.
 - It does not give a dose. A later reading of a medicine label has to end with: "I can read the words. I cannot tell you how much to take."
-- It has no accounts, no API keys, and no calls to ElevenLabs, Gemini, or any other vendor.
+- It has no accounts. API keys are not in the app or in git.
 - There is no install link in the repo. Building the preview APK needs your Expo account.
-- The worker is not deployed. It does not mint a speech token or forward speak, guide, or look requests.
+- The worker is not deployed. It mints a Scribe token only. It does not forward speak, guide, or look requests.
 
 ## Run the app locally
 
@@ -54,20 +55,14 @@ The `preview` profile is Android only. `android.buildType` is `apk`, so the buil
 
 ## Worker stub
 
-The worker is the empty shape of the key proxy. The only route is `GET /health`.
+The worker holds the keys and mints a Scribe token. `GET /health` is unchanged. `POST /v1/scribe-token` checks the demo secret, then asks ElevenLabs for a single-use `realtime_scribe` token. The response is `{ "token": "..." }`. It never returns the API key.
 
 ```bash
 npm test
 npx tsc --noEmit -p worker/tsconfig.json
 ```
 
-`npm test` calls the health route in-process. It does not deploy anything.
-
-To boot the worker on your machine, from `worker/`:
-
-```bash
-npx wrangler dev --port 8791
-```
+`npm test` calls the health route and the token route in-process. It does not deploy anything, and it does not call ElevenLabs.
 
 `GET /health` returns:
 
@@ -75,10 +70,37 @@ npx wrangler dev --port 8791
 { "ok": true, "env": ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "DEMO_SECRET"] }
 ```
 
-Those three names are the worker's environment. Values are secrets. They are not in this repo. There is no `.env`. Do not deploy this worker.
+Those three names are the worker's environment. Values are secrets. They are not in this repo. Do not deploy this worker.
 
-Anything other than `GET /health` returns 404. The response never includes secret values.
+Create `worker/.dev.vars` on this machine (it is gitignored):
+
+```
+ELEVENLABS_API_KEY=
+DEMO_SECRET=
+```
+
+Put the ElevenLabs key in `ELEVENLABS_API_KEY`. Pick any long random string for `DEMO_SECRET`. Create `.env` at the repo root (also gitignored) with the same demo string:
+
+```
+EXPO_PUBLIC_DEMO_SECRET=
+```
+
+Restart `npm start` after writing `.env`. Metro only reads `EXPO_PUBLIC_DEMO_SECRET` at startup. Then, from `worker/`:
+
+```bash
+npx wrangler dev --ip 0.0.0.0 --port 8791
+```
+
+The phone calls `http://<this-machine>:8791/v1/scribe-token`. `GEMINI_API_KEY` can stay empty for this test.
+
+Anything other than `GET /health` and `POST /v1/scribe-token` returns 404. Responses never include secret values.
+
+## Mixed-sentence test
+
+On the phone, in Expo Go, open the dev server. Tap **Talk**, then **Listen**. Allow the microphone. Hold the phone toward the person and say: “Bhai yeh bill kitna hai, cash mein do.”
+
+Pass means that one transcript line shows the Urdu words and the English word “cash”. Tap **Stop** when you are done. The browser preview on this machine can show the screen, but the microphone stream runs in Expo Go.
 
 ## With no network
 
-The home screen, both choices, the permission sentences, and the Urdu line work with no network. Nothing else is implemented.
+The home screen, both choices, the permission sentences, and the Urdu line work with no network. Listening stops, and the status says "No network."
