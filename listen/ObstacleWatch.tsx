@@ -142,21 +142,25 @@ export function ObstacleWatch({ onWarning, onReady, onCameraDenied, onModelError
       }
       pace.at = now;
       try {
-        let input: ArrayBuffer | null = null;
+        let outputs: ArrayBuffer[] | null = null;
         if (resizer != null) {
           const resized = resizer.resize(frame);
           try {
-            input = resized.getPixelBuffer();
+            // getPixelBuffer() is the live GPU mapping. runSync copies it.
+            // Disposing first frees that mapping and the model scores an empty frame.
+            outputs = current.runSync([resized.getPixelBuffer()]);
           } finally {
             resized.dispose();
           }
         } else {
-          input = rgbFromFrame(frame);
+          const input = rgbFromFrame(frame);
+          if (input != null) {
+            outputs = current.runSync([input]);
+          }
         }
-        if (input == null) {
+        if (outputs == null) {
           return;
         }
-        const outputs = current.runSync([input]);
         let boxesBuf = outputs[0];
         let scoresBuf = outputs[1];
         if (boxesBuf != null && scoresBuf != null) {
