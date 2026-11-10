@@ -535,8 +535,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minHeight: 0,
     color: "#ffffff",
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 36,
   },
   replyStrip: {
     flexGrow: 0,

@@ -636,8 +636,8 @@ const styles = StyleSheet.create({
   },
   status: {
     color: "#ffffff",
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 24,
+    lineHeight: 32,
   },
   answer: {
     flex: 1,
@@ -645,8 +645,8 @@ const styles = StyleSheet.create({
   },
   answerText: {
     color: "#ffffff",
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 36,
   },
   ink: {
     color: "#000000",

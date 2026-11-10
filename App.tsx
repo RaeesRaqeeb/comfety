@@ -7,6 +7,7 @@ import * as SystemUI from "expo-system-ui";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GuidePanel } from "./listen/GuidePanel";
 import { ListenPanel } from "./listen/ListenPanel";
+import { PinScreen } from "./listen/PinScreen";
 
 const FONT = "Noto Nastaliq Urdu";
 const URDU_SAMPLE = "سمجھ نہیں آئی";
@@ -30,6 +31,7 @@ export default function App() {
 
 function Home() {
   const [loaded, error] = useFonts(fonts);
+  const [unlocked, setUnlocked] = useState(false);
   const [choice, setChoice] = useState<Choice | null>(null);
 
   useEffect(() => {
@@ -52,46 +54,50 @@ function Home() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom", "left", "right"]}>
       <StatusBar style="light" />
-      <View style={styles.column}>
-        <Text accessibilityRole="header" style={styles.title}>
-          Comfety
-        </Text>
-        <ChoiceButton
-          title="Talk"
-          selected={choice === "talk"}
-          compact={choice !== null}
-          hint="Selects Talk. Listening starts only from the Listen button."
-          body="The microphone hears the other person, or your question. It is off until you tap Listen."
-          onPress={() => setChoice("talk")}
-          testID="talk-choice"
-        />
-        <ChoiceButton
-          title="Guide"
-          selected={choice === "guide"}
-          compact={choice !== null}
-          hint="Selects Guide. Does not turn the camera on."
-          body="The camera looks only after you ask. It is off. This is not a cane."
-          onPress={() => setChoice("guide")}
-          testID="guide-choice"
-        />
-        <Text accessibilityLiveRegion="polite" style={styles.body} testID="choice-status">
-          {statusLine(choice)}
-        </Text>
-        {choice === "talk" ? (
-          <ListenPanel />
-        ) : choice === "guide" ? (
-          <GuidePanel />
-        ) : fontReady ? (
-          <View testID="urdu-sample">
-            <Text style={styles.body}>Set in Noto Nastaliq Urdu.</Text>
-            <Text style={styles.urdu}>{URDU_SAMPLE}</Text>
-          </View>
-        ) : (
-          <Text style={styles.body} testID="urdu-error">
-            The Urdu font failed to load.
+      {!unlocked ? (
+        <PinScreen onUnlock={() => setUnlocked(true)} />
+      ) : (
+        <View style={styles.column}>
+          <Text accessibilityRole="header" style={styles.title}>
+            Comfety
           </Text>
-        )}
-      </View>
+          <ChoiceButton
+            title="Talk"
+            selected={choice === "talk"}
+            compact={choice !== null}
+            hint="Selects Talk. Listening starts only from the Listen button."
+            body="The microphone hears the other person, or your question. It is off until you tap Listen."
+            onPress={() => setChoice("talk")}
+            testID="talk-choice"
+          />
+          <ChoiceButton
+            title="Guide"
+            selected={choice === "guide"}
+            compact={choice !== null}
+            hint="Selects Guide. Does not turn the camera on."
+            body="The camera looks only after you ask. It is off. This is not a cane."
+            onPress={() => setChoice("guide")}
+            testID="guide-choice"
+          />
+          <Text accessibilityLiveRegion="polite" style={styles.status} testID="choice-status">
+            {statusLine(choice)}
+          </Text>
+          {choice === "talk" ? (
+            <ListenPanel />
+          ) : choice === "guide" ? (
+            <GuidePanel />
+          ) : fontReady ? (
+            <View testID="urdu-sample" style={styles.sample}>
+              <Text style={styles.body}>Set in Noto Nastaliq Urdu.</Text>
+              <Text style={styles.urdu}>{URDU_SAMPLE}</Text>
+            </View>
+          ) : (
+            <Text style={styles.body} testID="urdu-error">
+              The Urdu font failed to load.
+            </Text>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -151,21 +157,22 @@ const styles = StyleSheet.create({
   },
   column: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    gap: 12,
   },
   title: {
     color: "#ffffff",
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "600",
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   choice: {
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderWidth: 2,
   },
   choiceFill: {
@@ -175,6 +182,7 @@ const styles = StyleSheet.create({
   choiceCompact: {
     flexGrow: 0,
     flexShrink: 0,
+    paddingVertical: 10,
   },
   choiceOff: {
     backgroundColor: "#000000",
@@ -189,14 +197,23 @@ const styles = StyleSheet.create({
   },
   choiceTitle: {
     color: "#ffffff",
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: "600",
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: "700",
   },
   body: {
     color: "#ffffff",
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  status: {
+    color: "#ffffff",
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  sample: {
+    gap: 8,
+    paddingTop: 8,
   },
   ink: {
     color: "#000000",
@@ -204,8 +221,8 @@ const styles = StyleSheet.create({
   urdu: {
     fontFamily: FONT,
     color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 70,
+    fontSize: 30,
+    lineHeight: 72,
     textAlign: "center",
     writingDirection: "rtl",
   },
