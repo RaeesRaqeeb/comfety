@@ -1,8 +1,9 @@
 name = "comfety"
 main = "src/index.ts"
 compatibility_date = "2026-11-09"
+workers_dev = true
 
-# Secrets stay out of git. Do not deploy this stub.
+# Secrets stay out of git. Set with: npx wrangler secret put <NAME>
 # ELEVENLABS_API_KEY
 # XAI_API_KEY
 # DEMO_SECRET

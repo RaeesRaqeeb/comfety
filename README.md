@@ -44,15 +44,14 @@ Install EAS CLI:
 npm install --global eas-cli
 ```
 
-Log in, then build the Android preview APK. Keep `npm run listen` running on this laptop first so Talk and Guide can reach port 8791:
+Log in, then build the Android preview APK:
 
 ```bash
 eas login
-npm run listen
 eas build -p android --profile preview
 ```
 
-The `preview` profile is Android only. `android.buildType` is `apk`, so the build runs `:app:assembleRelease`. The JavaScript bundle is inside the APK. It is not a development client, and the phone does not need Metro. That profile sets `EXPO_PUBLIC_WORKER_URL` to `http://192.168.1.70:8791` (this laptop’s Wi‑Fi address) and pulls `EXPO_PUBLIC_DEMO_SECRET` from the EAS `preview` environment, so the APK can call the listen server without Metro. `expo-build-properties` sets Android cleartext so the APK may use that `http://` listen URL. The phone and laptop must be on the same Wi‑Fi. On the phone browser, `http://192.168.1.70:8791/health` should show `ok` while `npm run listen` is running. When the build finishes, that command prints the install link. Install the APK from the link with the USB cable unplugged. The phone needs Android 8 or newer. The GPU resizer needs a newer phone, but the CPU path should still watch on Android 8.
+The `preview` profile is Android only. `android.buildType` is `apk`, so the build runs `:app:assembleRelease`. The JavaScript bundle is inside the APK. It is not a development client, and the phone does not need Metro. That profile sets `EXPO_PUBLIC_WORKER_URL` to `https://comfety.comfety-raqeeb.workers.dev` and pulls `EXPO_PUBLIC_DEMO_SECRET` from the EAS `preview` environment, so Talk and Guide call the hosted Cloudflare Worker. Deploy or update that worker from `worker/` with `npx wrangler deploy` and `npx wrangler secret put` for `ELEVENLABS_API_KEY`, `XAI_API_KEY`, and `DEMO_SECRET`. For laptop-only testing you can still run `npm run listen` and point Expo Go at this machine. When the build finishes, that command prints the install link. Install the APK from the link with the USB cable unplugged. The phone needs Android 8 or newer. The GPU resizer needs a newer phone, but the CPU path should still watch on Android 8.
 
 ## Worker stub
 

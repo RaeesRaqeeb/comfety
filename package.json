@@ -4,7 +4,6 @@
   "main": "index.ts",
   "dependencies": {
     "@elevenlabs/client": "^1.35.0",
-    "@elevenlabs/elevenlabs-js": "^2.77.0",
     "expo": "~58.0.23",
     "expo-audio": "~58.0.11",
     "expo-build-properties": "~58.0.12",

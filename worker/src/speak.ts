@@ -1,4 +1,3 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { demoGate, json } from "./scribe-token.ts";
 
 export const SPEAK_MODEL = "eleven_v4_turbo";
@@ -27,29 +26,6 @@ const AUDIO_HEADERS = {
   "cache-control": "no-store",
 };
 
-async function readStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-      chunks.push(value);
-      total += value.byteLength;
-    }
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
-}
-
 export async function speakResponse(request: Request, env: SecretEnv): Promise<Response> {
   const gated = demoGate(request, env);
   if (gated) {
@@ -77,14 +53,25 @@ export async function speakResponse(request: Request, env: SecretEnv): Promise<R
   }
 
   try {
-    const audio = await new ElevenLabsClient({
-      apiKey: env.ELEVENLABS_API_KEY,
-    }).textToSpeech.convert(SPEAK_VOICES[voice], {
-      text,
-      modelId: SPEAK_MODEL,
-      outputFormat: "mp3_44100_128",
-    });
-    const bytes = await readStream(audio);
+    const upstream = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${SPEAK_VOICES[voice]}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "xi-api-key": env.ELEVENLABS_API_KEY,
+          accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: SPEAK_MODEL,
+        }),
+      },
+    );
+    if (!upstream.ok) {
+      return json({ error: "Speak request failed." }, 502);
+    }
+    const bytes = new Uint8Array(await upstream.arrayBuffer());
     if (bytes.byteLength === 0) {
       return json({ error: "Speak request failed." }, 502);
     }

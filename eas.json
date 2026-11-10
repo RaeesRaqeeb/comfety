@@ -9,7 +9,7 @@
       "developmentClient": false,
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_WORKER_URL": "http://192.168.1.70:8791"
+        "EXPO_PUBLIC_WORKER_URL": "https://comfety.comfety-raqeeb.workers.dev"
       },
       "android": {
         "buildType": "apk"

@@ -1,5 +1,3 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-
 type SecretEnv = {
   ELEVENLABS_API_KEY: string;
   DEMO_SECRET: string;
@@ -63,13 +61,21 @@ export async function scribeTokenResponse(request: Request, env: SecretEnv): Pro
   }
 
   try {
-    const created = await new ElevenLabsClient({
-      apiKey: env.ELEVENLABS_API_KEY,
-    }).tokens.singleUse.create("realtime_scribe");
-    if (!created.token) {
+    const upstream = await fetch(
+      "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe",
+      {
+        method: "POST",
+        headers: { "xi-api-key": env.ELEVENLABS_API_KEY },
+      },
+    );
+    if (!upstream.ok) {
       return json({ error: "Scribe token request failed." }, 502);
     }
-    return json({ token: created.token }, 200);
+    const body = (await upstream.json()) as { token?: unknown };
+    if (typeof body.token !== "string" || !body.token) {
+      return json({ error: "Scribe token request failed." }, 502);
+    }
+    return json({ token: body.token }, 200);
   } catch {
     return json({ error: "Scribe token request failed." }, 502);
   }
