@@ -36,6 +36,7 @@
   "scripts": {
     "start": "expo start --port 8421",
     "listen": "node --experimental-strip-types --env-file=.env.local scripts/listen-server.mjs",
+    "watch:photo": "node --experimental-strip-types scripts/watch-photo.mjs",
     "android": "expo start --android --port 8421",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
     "test": "node --experimental-strip-types worker/test/health.test.mjs && node --experimental-strip-types worker/test/scribe.test.mjs && node --experimental-strip-types worker/test/speak.test.mjs && node --experimental-strip-types listen/scribe.test.mjs && node --experimental-strip-types listen/replyList.test.mjs && node --experimental-strip-types listen/guideTurn.test.mjs && node --experimental-strip-types listen/lookIntent.test.mjs && node --experimental-strip-types listen/warning.test.mjs && node --experimental-strip-types listen/yolo.test.mjs && node --experimental-strip-types listen/modelFile.test.mjs && node --experimental-strip-types worker/test/guide.test.mjs && node --experimental-strip-types worker/test/look.test.mjs",

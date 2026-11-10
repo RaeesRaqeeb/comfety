@@ -36,18 +36,18 @@ export function boxesFromYolo(boxesQ: ArrayLike<number>, scoresQ: ArrayLike<numb
     if (best < scoreMin) {
       continue;
     }
-    const left = dequant(boxesQ[index] ?? 0, BOX_SCALE, BOX_ZERO);
-    const top = dequant(boxesQ[8400 + index] ?? 0, BOX_SCALE, BOX_ZERO);
-    const right = dequant(boxesQ[16800 + index] ?? 0, BOX_SCALE, BOX_ZERO);
-    const bottom = dequant(boxesQ[25200 + index] ?? 0, BOX_SCALE, BOX_ZERO);
-    const heightRatio = bottom - top;
-    if (heightRatio <= 0) {
+    // Channels are center x, center y, width, height. Reading them as
+    // left/top/right/bottom makes a close person look too short to say.
+    const centerX = dequant(boxesQ[index] ?? 0, BOX_SCALE, BOX_ZERO);
+    const width = dequant(boxesQ[16800 + index] ?? 0, BOX_SCALE, BOX_ZERO);
+    const height = dequant(boxesQ[25200 + index] ?? 0, BOX_SCALE, BOX_ZERO);
+    if (width <= 0 || height <= 0) {
       continue;
     }
     found.push({
       label,
-      heightRatio,
-      centerXRatio: (left + right) / 2,
+      heightRatio: height,
+      centerXRatio: centerX,
     });
   }
   return found;

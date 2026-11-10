@@ -6,11 +6,11 @@ function quant(real, scale, zero) {
   return Math.round(real / scale + zero);
 }
 
-function setBox(boxes, index, left, top, right, bottom) {
-  boxes[index] = quant(left, BOX_SCALE, BOX_ZERO);
-  boxes[8400 + index] = quant(top, BOX_SCALE, BOX_ZERO);
-  boxes[16800 + index] = quant(right, BOX_SCALE, BOX_ZERO);
-  boxes[25200 + index] = quant(bottom, BOX_SCALE, BOX_ZERO);
+function setBox(boxes, index, centerX, centerY, width, height) {
+  boxes[index] = quant(centerX, BOX_SCALE, BOX_ZERO);
+  boxes[8400 + index] = quant(centerY, BOX_SCALE, BOX_ZERO);
+  boxes[16800 + index] = quant(width, BOX_SCALE, BOX_ZERO);
+  boxes[25200 + index] = quant(height, BOX_SCALE, BOX_ZERO);
 }
 
 const boxes = new Int8Array(4 * 8400);
@@ -18,13 +18,13 @@ const scores = new Int8Array(80 * 8400);
 boxes.fill(BOX_ZERO);
 scores.fill(SCORE_ZERO);
 
-setBox(boxes, 10, 0.05, 0.2, 0.35, 0.7);
+setBox(boxes, 10, 0.2, 0.45, 0.3, 0.5);
 scores[10] = quant(0.8, SCORE_SCALE, SCORE_ZERO);
 
-setBox(boxes, 11, 0.1, 0.1, 0.9, 0.9);
+setBox(boxes, 11, 0.5, 0.5, 0.8, 0.8);
 scores[56 * 8400 + 11] = quant(0.95, SCORE_SCALE, SCORE_ZERO);
 
-setBox(boxes, 12, 0.1, 0.1, 0.4, 0.8);
+setBox(boxes, 12, 0.5, 0.5, 0.4, 0.7);
 scores[12] = quant(0.2, SCORE_SCALE, SCORE_ZERO);
 
 const found = boxesFromYolo(boxes, scores);
@@ -39,6 +39,17 @@ step = nextWarning(step.state, found, 100);
 assert.equal(step.speak, null);
 step = nextWarning(step.state, found, 200);
 assert.equal(step.speak, "Person close on the left");
+
+const centeredBoxes = new Int8Array(4 * 8400);
+const centeredScores = new Int8Array(80 * 8400);
+centeredBoxes.fill(BOX_ZERO);
+centeredScores.fill(SCORE_ZERO);
+setBox(centeredBoxes, 4, 0.5, 0.45, 0.45, 0.8);
+centeredScores[4] = quant(0.75, SCORE_SCALE, SCORE_ZERO);
+const centered = boxesFromYolo(centeredBoxes, centeredScores);
+assert.equal(centered.length, 1);
+assert.ok(centered[0].heightRatio >= 0.75 && centered[0].heightRatio <= 0.85);
+assert.equal(nextWarning(nextWarning(nextWarning(createWatcher(), centered, 0).state, centered, 200).state, centered, 400).speak, "Person close ahead");
 
 function rgbAt(buffer, x, y) {
   const index = (y * MODEL_INPUT + x) * 3;
