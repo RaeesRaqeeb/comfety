@@ -17,6 +17,7 @@ import type { RealtimeConnection } from "@elevenlabs/client";
 import { wantsSimpler } from "./guideTurn";
 import { lookIntent } from "./lookIntent";
 import { canWatchHere, WatchScreen } from "./watchGate";
+import { theme } from "./theme";
 import { NOT_WATCHING, wantsWatch } from "./warning";
 import {
   applyScribeMessage,
@@ -594,38 +595,43 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     minHeight: 0,
-    gap: 4,
+    gap: 8,
   },
   body: {
-    color: "#ffffff",
+    color: theme.textMuted,
     fontSize: 16,
     lineHeight: 22,
   },
   talk: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
-    borderWidth: 2,
-    borderColor: "#ffffff",
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.surface,
+    borderRadius: 14,
   },
   talkOn: {
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   talkTitle: {
-    color: "#ffffff",
+    color: theme.text,
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   look: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 36,
-    borderWidth: 2,
-    borderColor: "#ffffff",
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.surfaceGuide,
+    borderRadius: 14,
   },
   lookTitle: {
-    color: "#ffffff",
+    color: theme.text,
     fontSize: 18,
     lineHeight: 22,
     fontWeight: "600",
@@ -633,25 +639,27 @@ const styles = StyleSheet.create({
   preview: {
     flex: 1,
     width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
   },
   status: {
-    color: "#ffffff",
-    fontSize: 24,
-    lineHeight: 32,
+    color: theme.textMuted,
+    fontSize: 20,
+    lineHeight: 28,
   },
   answer: {
     flex: 1,
     minHeight: 0,
   },
   answerText: {
-    color: "#ffffff",
+    color: theme.text,
     fontSize: 28,
     lineHeight: 36,
   },
   ink: {
-    color: "#000000",
+    color: theme.onAccent,
   },
   pressed: {
-    opacity: 0.72,
+    opacity: 0.85,
   },
 });
